@@ -17,38 +17,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.function.mask;
+package com.sk89q.worldedit.util.report;
 
-import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.extent.Extent;
-import com.sk89q.worldedit.world.block.BlockTypes;
+public interface Report {
 
-import javax.annotation.Nullable;
-
-/**
- * A mask that returns true whenever the block at the location is not
- * an air block (it contains some other block).
- */
-public class ExistingBlockMask extends AbstractExtentMask {
-
-    /**
-     * Create a new existing block map.
-     *
-     * @param extent the extent to check
-     */
-    public ExistingBlockMask(Extent extent) {
-        super(extent);
-    }
-
-    @Override
-    public boolean test(Vector vector) {
-        return !getExtent().getBlock(vector).getBlockType().getMaterial().isAir();
-    }
-
-    @Nullable
-    @Override
-    public Mask2D toMask2D() {
-        return null;
-    }
+    String getTitle();
 
 }
