@@ -17,27 +17,37 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.command.tool.brush;
+package com.sk89q.worldedit.function.mask;
 
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.MaxChangedBlocksException;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.sk89q.worldedit.Vector;
-import com.sk89q.worldedit.function.pattern.Pattern;
+import com.sk89q.worldedit.extent.Extent;
+import com.sk89q.worldedit.world.block.BlockCategory;
+
+import javax.annotation.Nullable;
 
 /**
- * A brush is a long-range build tool.
+ * A mask that tests whether a block matches a given {@link BlockCategory}, or tag.
  */
-public interface Brush {
+public class BlockCategoryMask extends AbstractExtentMask {
 
-    /**
-     * Build the object.
-     * 
-     * @param editSession the {@code EditSession}
-     * @param position the position
-     * @param pattern the pattern
-     * @param size the size of the brush
-     * @throws MaxChangedBlocksException 
-     */
-    void build(EditSession editSession, Vector position, Pattern pattern, double size) throws MaxChangedBlocksException;
+    private BlockCategory category;
 
+    public BlockCategoryMask(Extent extent, BlockCategory category) {
+        super(extent);
+        checkNotNull(category);
+        this.category = category;
+    }
+
+    @Override
+    public boolean test(Vector vector) {
+        return category.contains(getExtent().getBlock(vector));
+    }
+
+    @Nullable
+    @Override
+    public Mask2D toMask2D() {
+        return null;
+    }
 }
