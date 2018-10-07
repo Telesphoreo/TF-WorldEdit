@@ -59,9 +59,6 @@ import javax.annotation.Nullable;
  */
 public class BukkitAdapter {
 
-    private BukkitAdapter() {
-    }
-
     private static final ParserContext TO_BLOCK_CONTEXT = new ParserContext();
 
     static {
