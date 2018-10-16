@@ -71,15 +71,6 @@ public class GeneralCommands {
 
         int limit = Math.max(-1, args.getInteger(0));
 
-        if (!WorldEditHandler.isSuperAdmin(player) && config.maxChangeLimit > -1)
-        {
-            if (limit > config.maxChangeLimit)
-            {
-                player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
-                return;
-            }
-        }
-
         // TFM Start
         final String targetName = (args.argsLength() == 2 ? args.getString(1) : null);
         final LocalSession targetSession = (targetName == null
@@ -88,7 +79,7 @@ public class GeneralCommands {
 
         if (targetSession == null)
         {
-            player.printError("Could not resolve player session for player: " + targetName);
+            player.printError("Unable to find session for " + targetName);
             return;
         }
 
