@@ -17,35 +17,27 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.util.gson;
+package com.sk89q.worldedit.util.task;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
+import java.util.Comparator;
 
 /**
- * Utility methods for Google's GSON library.
+ * Compares task states according to the order of the {@link Task.State}
+ * enumeration.
  */
-public final class GsonUtil {
+public class TaskStateComparator implements Comparator<Task<?>> {
 
-    private GsonUtil() {
+    @Override
+    public int compare(com.sk89q.worldedit.util.task.Task<?> o1, Task<?> o2) {
+        int ordinal1 = o1.getState().ordinal();
+        int ordinal2 = o2.getState().ordinal();
+        if (ordinal1 < ordinal2) {
+            return -1;
+        } else if (ordinal1 > ordinal2) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
-    /**
-     * Create a standard {@link GsonBuilder} for WorldEdit.
-     *
-     * @return a builder
-     */
-    public static GsonBuilder createBuilder() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(Vector3.class, new VectorAdapter());
-        gsonBuilder.registerTypeAdapter(BlockVector3.class, new BlockVectorAdapter());
-        return gsonBuilder;
-    }
-
-    private static final Gson gson = new Gson();
-    public static String stringValue(String s) {
-        return gson.toJson(s);
-    }
 }

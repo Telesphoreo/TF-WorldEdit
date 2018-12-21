@@ -17,35 +17,28 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.util.gson;
+package com.sk89q.worldedit.util.task;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
+import java.util.List;
 
 /**
- * Utility methods for Google's GSON library.
+ * Manages running tasks and informs users of their progress, but does not
+ * execute the task.
  */
-public final class GsonUtil {
-
-    private GsonUtil() {
-    }
+public interface Supervisor {
 
     /**
-     * Create a standard {@link GsonBuilder} for WorldEdit.
+     * Get a list of running or queued tasks.
      *
-     * @return a builder
+     * @return a list of tasks
      */
-    public static GsonBuilder createBuilder() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(Vector3.class, new VectorAdapter());
-        gsonBuilder.registerTypeAdapter(BlockVector3.class, new BlockVectorAdapter());
-        return gsonBuilder;
-    }
+    List<Task<?>> getTasks();
 
-    private static final Gson gson = new Gson();
-    public static String stringValue(String s) {
-        return gson.toJson(s);
-    }
+    /**
+     * Monitor the given task.
+     *
+     * @param task the task
+     */
+    void monitor(Task<?> task);
+
 }

@@ -84,6 +84,11 @@ public class BukkitPlayer extends AbstractPlayerActor {
     }
 
     @Override
+    public String getDisplayName() {
+        return player.getDisplayName();
+    }
+
+    @Override
     public void giveItem(BaseItemStack itemStack) {
         player.getInventory().addItem(BukkitAdapter.adapt(itemStack));
     }
@@ -193,6 +198,11 @@ public class BukkitPlayer extends AbstractPlayerActor {
                 position,
                 nativeLocation.getYaw(),
                 nativeLocation.getPitch());
+    }
+
+    @Override
+    public boolean setLocation(com.sk89q.worldedit.util.Location location) {
+        return player.teleport(BukkitAdapter.adapt(location));
     }
 
     @Nullable

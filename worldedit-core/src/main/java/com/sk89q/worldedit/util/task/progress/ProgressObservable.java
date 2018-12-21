@@ -17,35 +17,18 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.util.gson;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
+package com.sk89q.worldedit.util.task.progress;
 
 /**
- * Utility methods for Google's GSON library.
+ * An object that is able to report on its progress.
  */
-public final class GsonUtil {
-
-    private GsonUtil() {
-    }
+public interface ProgressObservable {
 
     /**
-     * Create a standard {@link GsonBuilder} for WorldEdit.
+     * Get the current percentage of completion.
      *
-     * @return a builder
+     * @return a progress object
      */
-    public static GsonBuilder createBuilder() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(Vector3.class, new VectorAdapter());
-        gsonBuilder.registerTypeAdapter(BlockVector3.class, new BlockVectorAdapter());
-        return gsonBuilder;
-    }
+    Progress getProgress();
 
-    private static final Gson gson = new Gson();
-    public static String stringValue(String s) {
-        return gson.toJson(s);
-    }
 }

@@ -17,35 +17,28 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.util.gson;
+package com.sk89q.worldedit.util.paste;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 
-/**
- * Utility methods for Google's GSON library.
- */
-public final class GsonUtil {
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
-    private GsonUtil() {
+final class Pasters {
+
+    private static final ListeningExecutorService executor =
+            MoreExecutors.listeningDecorator(
+                    new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                            2L, TimeUnit.SECONDS,
+                            new SynchronousQueue<>()));
+
+    private Pasters() {
     }
 
-    /**
-     * Create a standard {@link GsonBuilder} for WorldEdit.
-     *
-     * @return a builder
-     */
-    public static GsonBuilder createBuilder() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(Vector3.class, new VectorAdapter());
-        gsonBuilder.registerTypeAdapter(BlockVector3.class, new BlockVectorAdapter());
-        return gsonBuilder;
+    static ListeningExecutorService getExecutor() {
+        return executor;
     }
 
-    private static final Gson gson = new Gson();
-    public static String stringValue(String s) {
-        return gson.toJson(s);
-    }
 }

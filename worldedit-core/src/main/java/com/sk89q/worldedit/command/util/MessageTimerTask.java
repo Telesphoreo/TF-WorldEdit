@@ -17,35 +17,30 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.util.gson;
+package com.sk89q.worldedit.command.util;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Utility methods for Google's GSON library.
- */
-public final class GsonUtil {
+import com.sk89q.worldedit.extension.platform.Actor;
 
-    private GsonUtil() {
+import java.util.TimerTask;
+
+public class MessageTimerTask extends TimerTask {
+
+    private final Actor sender;
+    private final String message;
+
+    MessageTimerTask(Actor sender, String message) {
+        checkNotNull(sender);
+        checkNotNull(message);
+
+        this.sender = sender;
+        this.message = message;
     }
 
-    /**
-     * Create a standard {@link GsonBuilder} for WorldEdit.
-     *
-     * @return a builder
-     */
-    public static GsonBuilder createBuilder() {
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        gsonBuilder.registerTypeAdapter(Vector3.class, new VectorAdapter());
-        gsonBuilder.registerTypeAdapter(BlockVector3.class, new BlockVectorAdapter());
-        return gsonBuilder;
+    @Override
+    public void run() {
+        sender.printDebug(message);
     }
 
-    private static final Gson gson = new Gson();
-    public static String stringValue(String s) {
-        return gson.toJson(s);
-    }
 }
