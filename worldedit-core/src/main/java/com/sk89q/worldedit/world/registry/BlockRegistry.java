@@ -32,6 +32,15 @@ import javax.annotation.Nullable;
 public interface BlockRegistry {
 
     /**
+     * Gets the name for the given block.
+     *
+     * @param blockType the block
+     * @return The name, or null if it's unknown
+     */
+    @Nullable
+    String getName(BlockType blockType);
+
+    /**
      * Get the material for the given block.
      *
      * @param blockType the block
@@ -46,6 +55,6 @@ public interface BlockRegistry {
      * @param blockType the block
      * @return a map of states where the key is the state's ID
      */
-    Map<String, ? extends Property> getProperties(BlockType blockType);
+    Map<String, ? extends Property<?>> getProperties(BlockType blockType);
 
 }

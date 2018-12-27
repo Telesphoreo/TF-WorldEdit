@@ -23,6 +23,9 @@ import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.extension.input.InputParseException;
 import com.sk89q.worldedit.extension.input.ParserContext;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Input parser interface for {@link AbstractFactory}.
  *
@@ -33,10 +36,18 @@ public abstract class InputParser<E> {
 
     protected final WorldEdit worldEdit;
 
-    protected InputParser(WorldEdit worldEdit) {
+    public InputParser(WorldEdit worldEdit) {
         this.worldEdit = worldEdit;
     }
 
     public abstract E parseFromInput(String input, ParserContext context) throws InputParseException;
 
+    /**
+     * Gets a list of suggestions of input to this parser.
+     *
+     * @return a list of suggestions
+     */
+    public List<String> getSuggestions() {
+        return Collections.emptyList();
+    }
 }
