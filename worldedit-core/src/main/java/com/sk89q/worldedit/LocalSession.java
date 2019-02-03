@@ -52,7 +52,6 @@ import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.item.ItemTypes;
 import com.sk89q.worldedit.world.snapshot.Snapshot;
-import me.totalfreedom.worldedit.WorldEditHandler;
 
 import java.util.Calendar;
 import java.util.HashMap;
@@ -62,6 +61,7 @@ import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
+import me.totalfreedom.worldedit.WorldEditHandler;
 
 /**
  * Stores session information.
