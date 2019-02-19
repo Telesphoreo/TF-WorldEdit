@@ -19,30 +19,29 @@
 
 package com.sk89q.worldedit.function.pattern;
 
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.registry.state.Property;
+import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockTypes;
 
 /**
- * A pattern that reads from {@link Clipboard}.
+ * Removes the waterlogged state from blocks if possible. If not possible, returns air.
  */
-public class ClipboardPattern extends RepeatingExtentPattern {
+public class WaterloggedRemover extends AbstractExtentPattern {
 
-    /**
-     * Create a new clipboard pattern.
-     *
-     * @param clipboard the clipboard
-     */
-    public ClipboardPattern(Clipboard clipboard) {
-        this(clipboard, BlockVector3.ZERO);
+    public WaterloggedRemover(Extent extent) {
+        super(extent);
     }
 
-    /**
-     * Create a new clipboard pattern.
-     *
-     * @param clipboard the clipboard
-     * @param offset the offset
-     */
-    public ClipboardPattern(Clipboard clipboard, BlockVector3 offset) {
-        super(clipboard, clipboard.getMinimumPoint(), offset);
+    @Override
+    public BaseBlock apply(BlockVector3 position) {
+        BaseBlock block = getExtent().getFullBlock(position);
+        @SuppressWarnings("unchecked")
+        Property<Object> prop = (Property<Object>) block.getBlockType().getPropertyMap().getOrDefault("waterlogged", null);
+        if (prop != null) {
+            return block.with(prop, false);
+        }
+        return BlockTypes.AIR.getDefaultState().toBaseBlock();
     }
 }

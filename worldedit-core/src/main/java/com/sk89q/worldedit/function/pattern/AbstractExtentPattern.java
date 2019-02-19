@@ -17,28 +17,23 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.bukkit;
+package com.sk89q.worldedit.function.pattern;
 
-import com.sk89q.worldedit.world.biome.BiomeData;
-import com.sk89q.worldedit.world.biome.BiomeType;
-import com.sk89q.worldedit.world.registry.BiomeRegistry;
-import org.bukkit.block.Biome;
+import com.sk89q.worldedit.extent.Extent;
 
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * A biome registry for Bukkit.
- */
-class BukkitBiomeRegistry implements BiomeRegistry {
+public abstract class AbstractExtentPattern extends AbstractPattern implements ExtentPattern {
 
-    BukkitBiomeRegistry() {
+    private final Extent extent;
+
+    public AbstractExtentPattern(Extent extent) {
+        this.extent = extent;
+        checkNotNull(extent);
     }
 
-    @Nullable
     @Override
-    public BiomeData getData(BiomeType biome) {
-        final Biome bukkitBiome = BukkitAdapter.adapt(biome);
-        return bukkitBiome == null ? null : bukkitBiome::name;
+    public Extent getExtent() {
+        return extent;
     }
-
 }

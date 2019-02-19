@@ -19,36 +19,42 @@
 
 package com.sk89q.worldedit.extension.factory.parser.mask;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.Maps;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.extension.input.InputParseException;
 import com.sk89q.worldedit.extension.input.ParserContext;
 import com.sk89q.worldedit.extent.Extent;
-import com.sk89q.worldedit.function.mask.BlockCategoryMask;
+import com.sk89q.worldedit.function.mask.BlockStateMask;
 import com.sk89q.worldedit.function.mask.Mask;
+import com.sk89q.worldedit.function.mask.NoiseFilter;
 import com.sk89q.worldedit.internal.registry.InputParser;
+import com.sk89q.worldedit.math.noise.RandomNoise;
 import com.sk89q.worldedit.session.request.Request;
-import com.sk89q.worldedit.world.block.BlockCategory;
 
-public class BlockCategoryMaskParser extends InputParser<Mask> {
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
-    public BlockCategoryMaskParser(WorldEdit worldEdit) {
+public class BlockStateMaskParser extends InputParser<Mask> {
+
+    public BlockStateMaskParser(WorldEdit worldEdit) {
         super(worldEdit);
     }
 
     @Override
     public Mask parseFromInput(String input, ParserContext context) throws InputParseException {
-        if (!input.startsWith("##")) {
+        if (!(input.startsWith("^[") || input.startsWith("^=[")) || !input.endsWith("]")) {
             return null;
         }
-
         Extent extent = Request.request().getEditSession();
-
-        // This means it's a tag mask.
-        BlockCategory category = BlockCategory.REGISTRY.get(input.substring(2).toLowerCase());
-        if (category == null) {
-            throw new InputParseException("Unrecognised tag '" + input.substring(2) + '\'');
-        } else {
-            return new BlockCategoryMask(extent, category);
+        boolean strict = input.charAt(1) == '=';
+        String states = input.substring(2 + (strict ? 1 : 0), input.length() - 1);
+        try {
+            return new BlockStateMask(extent,
+                    Splitter.on(',').omitEmptyStrings().trimResults().withKeyValueSeparator('=').split(states),
+                    strict);
+        } catch (Exception e) {
+            throw new InputParseException("Invalid states.", e);
         }
     }
 }

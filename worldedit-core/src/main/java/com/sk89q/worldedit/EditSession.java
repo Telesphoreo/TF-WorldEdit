@@ -52,6 +52,7 @@ import com.sk89q.worldedit.function.block.Counter;
 import com.sk89q.worldedit.function.block.Naturalizer;
 import com.sk89q.worldedit.function.generator.GardenPatchGenerator;
 import com.sk89q.worldedit.function.mask.BlockMask;
+import com.sk89q.worldedit.function.mask.BlockStateMask;
 import com.sk89q.worldedit.function.mask.BlockTypeMask;
 import com.sk89q.worldedit.function.mask.BoundedHeightMask;
 import com.sk89q.worldedit.function.mask.ExistingBlockMask;
@@ -68,6 +69,7 @@ import com.sk89q.worldedit.function.operation.OperationQueue;
 import com.sk89q.worldedit.function.operation.Operations;
 import com.sk89q.worldedit.function.pattern.BlockPattern;
 import com.sk89q.worldedit.function.pattern.Pattern;
+import com.sk89q.worldedit.function.pattern.WaterloggedRemover;
 import com.sk89q.worldedit.function.util.RegionOffset;
 import com.sk89q.worldedit.function.visitor.DownwardVisitor;
 import com.sk89q.worldedit.function.visitor.LayerVisitor;
@@ -106,7 +108,7 @@ import com.sk89q.worldedit.util.collection.DoubleArrayList;
 import com.sk89q.worldedit.util.eventbus.EventBus;
 import com.sk89q.worldedit.world.NullWorld;
 import com.sk89q.worldedit.world.World;
-import com.sk89q.worldedit.world.biome.BaseBiome;
+import com.sk89q.worldedit.world.biome.BiomeType;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockCategories;
 import com.sk89q.worldedit.world.block.BlockState;
@@ -116,6 +118,7 @@ import com.sk89q.worldedit.world.block.BlockTypes;
 import com.sk89q.worldedit.world.registry.LegacyMapper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -560,12 +563,12 @@ public class EditSession implements Extent, AutoCloseable {
     }
 
     @Override
-    public BaseBiome getBiome(BlockVector2 position) {
+    public BiomeType getBiome(BlockVector2 position) {
         return bypassNone.getBiome(position);
     }
 
     @Override
-    public boolean setBiome(BlockVector2 position, BaseBiome biome) {
+    public boolean setBiome(BlockVector2 position, BiomeType biome) {
         return bypassNone.setBiome(position, biome);
     }
 
@@ -1283,15 +1286,38 @@ public class EditSession implements Extent, AutoCloseable {
      * @throws MaxChangedBlocksException thrown if too many blocks are changed
      */
     public int drainArea(BlockVector3 origin, double radius) throws MaxChangedBlocksException {
+        return drainArea(origin, radius, false);
+    }
+
+    /**
+     * Drain nearby pools of water or lava, optionally removed waterlogged states from blocks.
+     *
+     * @param origin the origin to drain from, which will search a 3x3 area
+     * @param radius the radius of the removal, where a value should be 0 or greater
+     * @param waterlogged true to make waterlogged blocks non-waterlogged as well
+     * @return number of blocks affected
+     * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     */
+    public int drainArea(BlockVector3 origin, double radius, boolean waterlogged) throws MaxChangedBlocksException {
         checkNotNull(origin);
         checkArgument(radius >= 0, "radius >= 0 required");
 
         MaskIntersection mask = new MaskIntersection(
                 new BoundedHeightMask(0, getWorld().getMaxY()),
                 new RegionMask(new EllipsoidRegion(null, origin, Vector3.at(radius, radius, radius))),
-                getWorld().createLiquidMask());
+                waterlogged ? new MaskUnion(
+                                getWorld().createLiquidMask(),
+                                new BlockStateMask(this, new HashMap<String, String>() {{
+                                    put("waterlogged", "true");
+                                }}, true))
+                            : getWorld().createLiquidMask());
 
-        BlockReplace replace = new BlockReplace(this, new BlockPattern(BlockTypes.AIR.getDefaultState()));
+        BlockReplace replace;
+        if (waterlogged) {
+            replace = new BlockReplace(this, new WaterloggedRemover(this));
+        } else {
+            replace = new BlockReplace(this, new BlockPattern(BlockTypes.AIR.getDefaultState()));
+        }
         RecursiveVisitor visitor = new RecursiveVisitor(mask, replace);
 
         // Around the origin in a 3x3 block
@@ -2177,7 +2203,7 @@ public class EditSession implements Extent, AutoCloseable {
         }
     }
 
-    public int makeBiomeShape(final Region region, final Vector3 zero, final Vector3 unit, final BaseBiome biomeType, final String expressionString, final boolean hollow) throws ExpressionException, MaxChangedBlocksException {
+    public int makeBiomeShape(final Region region, final Vector3 zero, final Vector3 unit, final BiomeType biomeType, final String expressionString, final boolean hollow) throws ExpressionException, MaxChangedBlocksException {
         final Vector2 zero2D = zero.toVector2();
         final Vector2 unit2D = unit.toVector2();
 
@@ -2190,14 +2216,14 @@ public class EditSession implements Extent, AutoCloseable {
 
         final ArbitraryBiomeShape shape = new ArbitraryBiomeShape(region) {
             @Override
-            protected BaseBiome getBiome(int x, int z, BaseBiome defaultBiomeType) {
+            protected BiomeType getBiome(int x, int z, BiomeType defaultBiomeType) {
                 final Vector2 current = Vector2.at(x, z);
                 environment.setCurrentBlock(current.toVector3(0));
                 final Vector2 scaled = current.subtract(zero2D).divide(unit2D);
 
                 try {
                     if (expression.evaluate(scaled.getX(), scaled.getZ()) <= 0) {
-                        return null; // TODO should return OUTSIDE? seems to cause issues otherwise, workedaround for now
+                        return null;
                     }
 
                     // TODO: Allow biome setting via a script variable (needs BiomeType<->int mapping)
