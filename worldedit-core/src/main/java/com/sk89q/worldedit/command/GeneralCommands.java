@@ -37,7 +37,6 @@ import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.util.command.parametric.Optional;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.item.ItemTypes;
-import me.totalfreedom.worldedit.WorldEditHandler;
 
 /**
  * General WorldEdit commands.
@@ -58,10 +57,10 @@ public class GeneralCommands {
 
     @Command(
         aliases = { "/limit" },
-        usage = "<limit> [player]",
+        usage = "[limit]",
         desc = "Modify block change limit",
-        min = 1,
-        max = 2
+        min = 0,
+        max = 1
     )
     @CommandPermissions("worldedit.limit")
     public void limit(Player player, LocalSession session, EditSession editSession, CommandContext args) throws WorldEditException {
@@ -69,28 +68,7 @@ public class GeneralCommands {
         LocalConfiguration config = worldEdit.getConfiguration();
         boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
 
-        int limit = Math.max(-1, args.getInteger(0));
-
-        // TFM Start
-        final String targetName = (args.argsLength() == 2 ? args.getString(1) : null);
-        final LocalSession targetSession = (targetName == null
-                ? WorldEdit.getInstance().getSessionManager().get(player)
-                : WorldEdit.getInstance().getSessionManager().findByName(targetName));
-
-        if (targetSession == null)
-        {
-            player.printError("Unable to find session for " + targetName);
-            return;
-        }
-
-        limit = WorldEditHandler.limitChanged(player, limit, targetName);
-
-        if (limit < -1)
-        {
-            return;
-        }
-        // TFM End
-
+        int limit = args.argsLength() == 0 ? config.defaultChangeLimit : Math.max(-1, args.getInteger(0));
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
                 player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
@@ -100,10 +78,40 @@ public class GeneralCommands {
 
         session.setBlockChangeLimit(limit);
 
-        if (limit != -1) {
-            player.print("Block change limit set to " + limit + ". (Use //limit 100000 to go back to the default.)");
+        if (limit != config.defaultChangeLimit) {
+            player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
         } else {
             player.print("Block change limit set to " + limit + ".");
+        }
+    }
+
+    @Command(
+            aliases = { "/timeout" },
+            usage = "[time]",
+            desc = "Modify evaluation timeout time.",
+            min = 0,
+            max = 1
+    )
+    @CommandPermissions("worldedit.timeout")
+    public void timeout(Player player, LocalSession session, EditSession editSession, CommandContext args) throws WorldEditException {
+
+        LocalConfiguration config = worldEdit.getConfiguration();
+        boolean mayDisable = player.hasPermission("worldedit.timeout.unrestricted");
+
+        int limit = args.argsLength() == 0 ? config.calculationTimeout : Math.max(-1, args.getInteger(0));
+        if (!mayDisable && config.maxCalculationTimeout > -1) {
+            if (limit > config.maxCalculationTimeout) {
+                player.printError("Your maximum allowable timeout is " + config.maxCalculationTimeout + " ms.");
+                return;
+            }
+        }
+
+        session.setTimeout(limit);
+
+        if (limit != config.calculationTimeout) {
+            player.print("Timeout time set to " + limit + " ms. (Use //timeout to go back to the default.)");
+        } else {
+            player.print("Timeout time set to " + limit + " ms.");
         }
     }
 
