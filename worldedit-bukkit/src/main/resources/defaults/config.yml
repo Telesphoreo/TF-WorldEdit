@@ -18,7 +18,7 @@
 
 limits:
     max-blocks-changed:
-        default: -1
+        default: 100000
         maximum: -1
     max-polygonal-points:
         default: -1

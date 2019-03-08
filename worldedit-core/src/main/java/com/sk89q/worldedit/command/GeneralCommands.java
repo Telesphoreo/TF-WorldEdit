@@ -19,17 +19,11 @@
 
 package com.sk89q.worldedit.command;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Sets;
 import com.sk89q.minecraft.util.commands.Command;
 import com.sk89q.minecraft.util.commands.CommandContext;
 import com.sk89q.minecraft.util.commands.CommandPermissions;
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.LocalConfiguration;
-import com.sk89q.worldedit.LocalSession;
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.WorldEditException;
+import com.sk89q.worldedit.*;
 import com.sk89q.worldedit.entity.Player;
 import com.sk89q.worldedit.extension.input.DisallowedUsageException;
 import com.sk89q.worldedit.extension.platform.Actor;
@@ -37,6 +31,9 @@ import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.util.command.parametric.Optional;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.item.ItemTypes;
+import me.totalfreedom.worldedit.WorldEditHandler;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * General WorldEdit commands.
@@ -56,19 +53,38 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/limit" },
-        usage = "[limit]",
-        desc = "Modify block change limit",
-        min = 0,
-        max = 1
+            aliases = {"/limit"},
+            usage = "[limit] [player]",
+            desc = "Modify block change limit",
+            min = 0,
+            max = 2
     )
     @CommandPermissions("worldedit.limit")
     public void limit(Player player, LocalSession session, EditSession editSession, CommandContext args) throws WorldEditException {
-        
+
         LocalConfiguration config = worldEdit.getConfiguration();
         boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
 
         int limit = args.argsLength() == 0 ? config.defaultChangeLimit : Math.max(-1, args.getInteger(0));
+
+        // TFM Start
+        final String targetName = (args.argsLength() == 2 ? args.getString(1) : null);
+        final LocalSession targetSession = (targetName == null
+                ? WorldEdit.getInstance().getSessionManager().get(player)
+                : WorldEdit.getInstance().getSessionManager().findByName(targetName));
+
+        if (targetSession == null) {
+            player.printError("Unable to find session for " + targetName);
+            return;
+        }
+
+        limit = WorldEditHandler.limitChanged(player, limit, targetName);
+
+        if (limit < -1) {
+            return;
+        }
+        // TFM End
+
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
                 player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
@@ -78,7 +94,7 @@ public class GeneralCommands {
 
         session.setBlockChangeLimit(limit);
 
-        if (limit != config.defaultChangeLimit) {
+        if (limit != -1) {
             player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
         } else {
             player.print("Block change limit set to " + limit + ".");
@@ -86,7 +102,7 @@ public class GeneralCommands {
     }
 
     @Command(
-            aliases = { "/timeout" },
+            aliases = {"/timeout"},
             usage = "[time]",
             desc = "Modify evaluation timeout time.",
             min = 0,
@@ -116,11 +132,11 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/fast" },
-        usage = "[on|off]",
-        desc = "Toggle fast mode",
-        min = 0,
-        max = 1
+            aliases = {"/fast"},
+            usage = "[on|off]",
+            desc = "Toggle fast mode",
+            min = 0,
+            max = 1
     )
     @CommandPermissions("worldedit.fast")
     public void fast(Player player, LocalSession session, EditSession editSession, CommandContext args) throws WorldEditException {
@@ -146,7 +162,7 @@ public class GeneralCommands {
     }
 
     @Command(
-            aliases = { "/reorder" },
+            aliases = {"/reorder"},
             usage = "[multi|fast|none]",
             desc = "Sets the reorder mode of WorldEdit",
             min = 0,
@@ -171,7 +187,7 @@ public class GeneralCommands {
     }
 
     @Command(
-            aliases = { "/drawsel" },
+            aliases = {"/drawsel"},
             usage = "[on|off]",
             desc = "Toggle drawing the current selection",
             min = 0,
@@ -206,11 +222,11 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/gmask", "gmask" },
-        usage = "[mask]",
-        desc = "Set the global mask",
-        min = 0,
-        max = -1
+            aliases = {"/gmask", "gmask"},
+            usage = "[mask]",
+            desc = "Set the global mask",
+            min = 0,
+            max = -1
     )
     @CommandPermissions("worldedit.global-mask")
     public void gmask(Player player, LocalSession session, EditSession editSession, @Optional Mask mask) throws WorldEditException {
@@ -224,11 +240,11 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/toggleplace", "toggleplace" },
-        usage = "",
-        desc = "Switch between your position and pos1 for placement",
-        min = 0,
-        max = 0
+            aliases = {"/toggleplace", "toggleplace"},
+            usage = "",
+            desc = "Switch between your position and pos1 for placement",
+            min = 0,
+            max = 0
     )
     public void togglePlace(Player player, LocalSession session, EditSession editSession, CommandContext args) throws WorldEditException {
 
@@ -240,20 +256,20 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/searchitem", "/l", "/search", "searchitem" },
-        usage = "<query>",
-        flags = "bi",
-        desc = "Search for an item",
-        help =
-            "Searches for an item.\n" +
-            "Flags:\n" +
-            "  -b only search for blocks\n" +
-            "  -i only search for items",
-        min = 1,
-        max = 1
+            aliases = {"/searchitem", "/l", "/search", "searchitem"},
+            usage = "<query>",
+            flags = "bi",
+            desc = "Search for an item",
+            help =
+                    "Searches for an item.\n" +
+                            "Flags:\n" +
+                            "  -b only search for blocks\n" +
+                            "  -i only search for items",
+            min = 1,
+            max = 1
     )
     public void searchItem(Actor actor, CommandContext args) throws WorldEditException {
-        
+
         String query = args.getString(0).trim().toLowerCase();
         boolean blocksOnly = args.hasFlag('b');
         boolean itemsOnly = args.hasFlag('i');
