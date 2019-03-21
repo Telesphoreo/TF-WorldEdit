@@ -37,6 +37,9 @@ import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.util.command.parametric.Optional;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.item.ItemTypes;
+import me.totalfreedom.worldedit.WorldEditHandler;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 
 /**
  * General WorldEdit commands.
@@ -56,19 +59,19 @@ public class GeneralCommands {
     }
 
     @Command(
-        aliases = { "/limit" },
-        usage = "[limit]",
-        desc = "Modify block change limit",
-        min = 0,
-        max = 1
+            aliases = { "/limit" },
+            usage = "[limit] [player]",
+            desc = "Modify block change limit",
+            min = 0,
+            max = 2
     )
     @CommandPermissions("worldedit.limit")
     public void limit(Player player, LocalSession session, CommandContext args) throws WorldEditException {
-        
         LocalConfiguration config = worldEdit.getConfiguration();
         boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
 
         int limit = args.argsLength() == 0 ? config.defaultChangeLimit : Math.max(-1, args.getInteger(0));
+
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
                 player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
@@ -76,12 +79,40 @@ public class GeneralCommands {
             }
         }
 
-        session.setBlockChangeLimit(limit);
+        String targetName = (args.argsLength() == 2 ? args.getString(1) : null);
+        final LocalSession targetSession = (targetName == null ?
+                WorldEdit.getInstance().getSessionManager().get(player) :
+                WorldEdit.getInstance().getSessionManager().findByName(targetName));
 
-        if (limit != config.defaultChangeLimit) {
-            player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
+        if (targetSession == null) {
+            player.printError("Could not resolve player session for player: " + targetName);
+            return;
+        }
+
+        limit = WorldEditHandler.limitChanged(player, limit, targetName);
+
+        if (limit < -1) {
+            return;
+        }
+
+        targetSession.setBlockChangeLimit(limit);
+
+        if (targetName == null) {
+            targetName = player.getName();
+        }
+
+        if (!targetName.equals(player.getName())) {
+            final org.bukkit.entity.Player receiver = Bukkit.getServer().getPlayer(targetName);
+            player.print("Block limit for " + targetName + " set to " + limit + ".");
+            if (receiver != null) {
+                receiver.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
+            }
         } else {
-            player.print("Block change limit set to " + limit + ".");
+            if (limit != -1) {
+                player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
+            } else {
+                player.print("Block change limit set to " + limit + ".");
+            }
         }
     }
 

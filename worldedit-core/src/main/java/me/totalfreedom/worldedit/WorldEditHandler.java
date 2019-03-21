@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.sk89q.worldedit.IncompleteRegionException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.regions.Region;
-import java.util.logging.Logger;
+
 import javax.annotation.Nullable;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -31,11 +31,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.util.Vector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorldEditHandler {
 
-    public static final boolean DEBUG = true;
-    public static final Logger LOGGER = Bukkit.getPluginManager().getPlugin("WorldEdit").getLogger();
+    private static final boolean DEBUG = true;
+    public static final Logger logger = LoggerFactory.getLogger(WorldEdit.class);
     private static Function<Player, Boolean> superAdminProvider;
 
     public static void selectionChanged(com.sk89q.worldedit.entity.Player wePlayer) {
@@ -111,7 +113,7 @@ public class WorldEditHandler {
             }
 
             if (provider == null) {
-                warning("Could not obtain SuperAdmin service provider!");
+                logger.warn("Could not obtain SuperAdmin service provider!");
                 return false;
             }
 
@@ -165,7 +167,7 @@ public class WorldEditHandler {
     public static Plugin getTFM() {
         final Plugin tfm = Bukkit.getPluginManager().getPlugin("TotalFreedomMod");
         if (tfm == null) {
-            LOGGER.warning("Could not resolve plugin: TotalFreedomMod");
+            logger.warn("Could not resolve plugin: TotalFreedomMod");
         }
 
         return tfm;
@@ -173,16 +175,7 @@ public class WorldEditHandler {
 
     public static void debug(String debug) {
         if (DEBUG) {
-            info(debug);
+            logger.info(debug);
         }
     }
-
-    public static void warning(String warning) {
-        LOGGER.warning(warning);
-    }
-
-    public static void info(String info) {
-        LOGGER.info(info);
-    }
-
 }

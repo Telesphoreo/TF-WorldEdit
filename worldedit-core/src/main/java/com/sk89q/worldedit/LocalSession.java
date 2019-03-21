@@ -50,6 +50,7 @@ import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.item.ItemTypes;
 import com.sk89q.worldedit.world.snapshot.Snapshot;
+import me.totalfreedom.worldedit.WorldEditHandler;
 
 import javax.annotation.Nullable;
 import java.util.Calendar;
@@ -711,6 +712,10 @@ public class LocalSession {
             actor.dispatchCUIEvent(event);
         } else if (useServerCUI) {
             updateServerCUI(actor);
+        }
+
+        if (actor instanceof com.sk89q.worldedit.entity.Player) {
+            WorldEditHandler.selectionChanged((com.sk89q.worldedit.entity.Player) actor);
         }
     }
 
