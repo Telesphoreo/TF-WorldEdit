@@ -19,12 +19,6 @@
 
 package com.sk89q.worldedit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.sk89q.worldedit.regions.Regions.asFlatRegion;
-import static com.sk89q.worldedit.regions.Regions.maximumBlockY;
-import static com.sk89q.worldedit.regions.Regions.minimumBlockY;
-
 import com.sk89q.worldedit.entity.BaseEntity;
 import com.sk89q.worldedit.entity.Entity;
 import com.sk89q.worldedit.event.extent.EditSessionEvent;
@@ -50,6 +44,7 @@ import com.sk89q.worldedit.function.block.BlockDistributionCounter;
 import com.sk89q.worldedit.function.block.BlockReplace;
 import com.sk89q.worldedit.function.block.Counter;
 import com.sk89q.worldedit.function.block.Naturalizer;
+import com.sk89q.worldedit.function.generator.ForestGenerator;
 import com.sk89q.worldedit.function.generator.GardenPatchGenerator;
 import com.sk89q.worldedit.function.mask.BlockMask;
 import com.sk89q.worldedit.function.mask.BlockStateMask;
@@ -117,7 +112,10 @@ import com.sk89q.worldedit.world.block.BlockStateHolder;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
 import com.sk89q.worldedit.world.registry.LegacyMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,10 +124,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.sk89q.worldedit.regions.Regions.asFlatRegion;
+import static com.sk89q.worldedit.regions.Regions.maximumBlockY;
+import static com.sk89q.worldedit.regions.Regions.minimumBlockY;
 
 /**
  * An {@link Extent} that handles history, {@link BlockBag}s, change limits,
@@ -142,7 +142,7 @@ import javax.annotation.Nullable;
 @SuppressWarnings({"FieldCanBeLocal"})
 public class EditSession implements Extent, AutoCloseable {
 
-    private static final Logger log = Logger.getLogger(EditSession.class.getCanonicalName());
+    private static final Logger log = LoggerFactory.getLogger(EditSession.class);
 
     /**
      * Used by {@link EditSession#setBlock(BlockVector3, BlockStateHolder, Stage)} to
@@ -1833,38 +1833,25 @@ public class EditSession implements Extent, AutoCloseable {
      * @throws MaxChangedBlocksException thrown if too many blocks are changed
      */
     public int makeForest(BlockVector3 basePosition, int size, double density, TreeGenerator.TreeType treeType) throws MaxChangedBlocksException {
-        int affected = 0;
+        return makeForest(CuboidRegion.fromCenter(basePosition, size), density, treeType);
+    }
 
-        for (int x = basePosition.getBlockX() - size; x <= basePosition.getBlockX()
-                + size; ++x) {
-            for (int z = basePosition.getBlockZ() - size; z <= basePosition.getBlockZ()
-                    + size; ++z) {
-                // Don't want to be in the ground
-                if (!getBlock(BlockVector3.at(x, basePosition.getBlockY(), z)).getBlockType().getMaterial().isAir()) {
-                    continue;
-                }
-                // The gods don't want a tree here
-                if (Math.random() >= density) {
-                    continue;
-                } // def 0.05
-
-                for (int y = basePosition.getBlockY(); y >= basePosition.getBlockY() - 10; --y) {
-                    // Check if we hit the ground
-                    BlockType t = getBlock(BlockVector3.at(x, y, z)).getBlockType();
-                    if (t == BlockTypes.GRASS_BLOCK || t == BlockTypes.DIRT) {
-                        treeType.generate(this, BlockVector3.at(x, y + 1, z));
-                        ++affected;
-                        break;
-                    } else if (t == BlockTypes.SNOW) {
-                        setBlock(BlockVector3.at(x, y, z), BlockTypes.AIR.getDefaultState());
-                    } else if (!t.getMaterial().isAir()) { // Trees won't grow on this!
-                        break;
-                    }
-                }
-            }
-        }
-
-        return affected;
+    /**
+     * Makes a forest.
+     *
+     * @param region the region to generate trees in
+     * @param density between 0 and 1, inclusive
+     * @param treeType the tree type
+     * @return number of trees created
+     * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     */
+    public int makeForest(Region region, double density, TreeGenerator.TreeType treeType) throws MaxChangedBlocksException {
+        ForestGenerator generator = new ForestGenerator(this, treeType);
+        GroundFunction ground = new GroundFunction(new ExistingBlockMask(this), generator);
+        LayerVisitor visitor = new LayerVisitor(asFlatRegion(region), minimumBlockY(region), maximumBlockY(region), ground);
+        visitor.setMask(new NoiseFilter2D(new RandomNoise(), density));
+        Operations.completeLegacy(visitor);
+        return ground.getAffected();
     }
 
     /**
@@ -1958,7 +1945,7 @@ public class EditSession implements Extent, AutoCloseable {
                     timedOut[0] = timedOut[0] + 1;
                     return null;
                 } catch (Exception e) {
-                    log.log(Level.WARNING, "Failed to create shape", e);
+                    log.warn("Failed to create shape", e);
                     return null;
                 }
             }
@@ -2322,7 +2309,7 @@ public class EditSession implements Extent, AutoCloseable {
                     timedOut[0] = timedOut[0] + 1;
                     return null;
                 } catch (Exception e) {
-                    log.log(Level.WARNING, "Failed to create shape", e);
+                    log.warn("Failed to create shape", e);
                     return null;
                 }
             }
