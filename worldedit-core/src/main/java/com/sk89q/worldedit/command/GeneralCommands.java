@@ -71,6 +71,9 @@ public class GeneralCommands {
         boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
 
         int limit = args.argsLength() == 0 ? config.defaultChangeLimit : Math.max(-1, args.getInteger(0));
+        final String sessionName = args.argsLength() == 2 ? args.getString(1) : player.getName();
+        final org.bukkit.entity.Player sessionPlayer = WorldEditHandler.getPlayer(sessionName);
+        session = WorldEdit.getInstance().getSessionManager().findByName(sessionName);
 
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
@@ -79,36 +82,24 @@ public class GeneralCommands {
             }
         }
 
-        String targetName = (args.argsLength() == 2 ? args.getString(1) : null);
-        final LocalSession targetSession = (targetName == null ?
-                WorldEdit.getInstance().getSessionManager().get(player) :
-                WorldEdit.getInstance().getSessionManager().findByName(targetName));
-
-        if (targetSession == null) {
-            player.printError("Could not resolve player session for player: " + targetName);
+        if (session == null) {
+            player.printError("Could not resolve player session for player: " + sessionName);
             return;
         }
 
-        limit = WorldEditHandler.limitChanged(player, limit, targetName);
+        limit = WorldEditHandler.limitChanged(player, limit, sessionName);
 
         if (limit < -1) {
             return;
         }
 
-        targetSession.setBlockChangeLimit(limit);
+        session.setBlockChangeLimit(limit);
 
-        if (targetName == null) {
-            targetName = player.getName();
-        }
-
-        if (!targetName.equals(player.getName())) {
-            final org.bukkit.entity.Player receiver = Bukkit.getServer().getPlayer(targetName);
-            player.print("Block limit for " + targetName + " set to " + limit + ".");
-            if (receiver != null) {
-                receiver.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
-            }
+        if (!sessionName.equals(player.getName())) {
+            player.print("Block limit for " + sessionPlayer.getName() + " set to " + limit + ".");
+            sessionPlayer.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
         } else {
-            if (limit != -1) {
+            if (limit != config.defaultChangeLimit) {
                 player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
             } else {
                 player.print("Block change limit set to " + limit + ".");
