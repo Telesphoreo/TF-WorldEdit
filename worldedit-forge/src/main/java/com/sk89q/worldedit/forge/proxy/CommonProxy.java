@@ -17,24 +17,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.extension.factory.parser.pattern;
+package com.sk89q.worldedit.forge.proxy;
 
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.extension.input.InputParseException;
-import com.sk89q.worldedit.extension.input.ParserContext;
-import com.sk89q.worldedit.function.pattern.BlockPattern;
-import com.sk89q.worldedit.function.pattern.Pattern;
-import com.sk89q.worldedit.internal.registry.InputParser;
+public interface CommonProxy {
 
-public class SingleBlockPatternParser extends InputParser<Pattern> {
-
-    public SingleBlockPatternParser(WorldEdit worldEdit) {
-        super(worldEdit);
-    }
-
-    @Override
-    public Pattern parseFromInput(String input, ParserContext context) throws InputParseException {
-        return new BlockPattern(worldEdit.getBlockFactory().parseFromInput(input, context));
-    }
-
+    void registerHandlers();
 }
