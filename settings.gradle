@@ -2,7 +2,7 @@ rootProject.name = 'worldedit'
 
 include 'worldedit-libs'
 
-['bukkit', 'core', 'forge', 'sponge'].forEach {
+['bukkit', 'core'].forEach {
     include "worldedit-libs:$it"
     include "worldedit-$it"
 }

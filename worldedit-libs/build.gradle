@@ -105,11 +105,6 @@ project("bukkit") {
         shade 'net.kyori:text-adapter-bukkit:2.0.0-SNAPSHOT'
     }
 }
-project("sponge") {
-    dependencies {
-        shade 'net.kyori:text-adapter-spongeapi:2.0.0-SNAPSHOT'
-    }
-}
 
 tasks.register("build") {
     dependsOn(subprojects.collect { it.tasks.named("build") })
