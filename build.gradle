@@ -38,7 +38,7 @@ println """
 
 allprojects {
     group = 'com.sk89q.worldedit'
-    version = '7.0.0-beta-05-TF'
+    version = '7.0.0-SNAPSHOT'
 }
 
 if (!project.hasProperty("artifactory_contextUrl")) ext.artifactory_contextUrl = "http://localhost"
@@ -53,7 +53,7 @@ if (!project.hasProperty("gitCommitHash") && !JavaVersion.current().isJava6()) {
         println "Error getting commit hash: " + e.getMessage()
     }
 }
- if (!project.hasProperty("gitCommitHash")) {
+if (!project.hasProperty("gitCommitHash")) {
     ext.gitCommitHash = "no_git_id"
 }
 
@@ -82,8 +82,17 @@ artifactory {
 artifactoryPublish.skip = true
 
 subprojects {
+    repositories {
+        mavenCentral()
+        maven { url "http://maven.sk89q.com/repo/" }
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+    }
+}
+
+configure(['core', 'bukkit', 'forge', 'sponge'].collect { project(":worldedit-$it") }) {
     apply plugin: 'java'
     apply plugin: 'maven'
+    apply plugin: 'checkstyle'
     apply plugin: 'com.github.johnrengelman.shadow'
     apply plugin: 'com.jfrog.artifactory'
     apply plugin: 'net.minecrell.licenser'
@@ -93,11 +102,8 @@ subprojects {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
-    repositories {
-        mavenCentral()
-        maven { url "http://maven.sk89q.com/repo/" }
-        maven { url "http://repo.maven.apache.org/maven2" }
-    }
+    checkstyle.configFile = new File(rootProject.projectDir, "config/checkstyle/checkstyle.xml")
+    checkstyle.toolVersion = '7.6.1'
 
     if (JavaVersion.current().isJava8Compatible()) {
         // Java 8 turns on doclint which we fail
@@ -127,20 +133,10 @@ subprojects {
         }
         build.dependsOn(sourcesJar)
     }
-    
-    build.dependsOn(javadocJar)
 
-    shadowJar {
-        classifier 'dist'
-        dependencies {
-            include(dependency('com.sk89q:jchronic:0.2.4a'))
-            include(dependency('com.thoughtworks.paranamer:paranamer:2.6'))
-            include(dependency('com.sk89q.lib:jlibnoise:1.0.0'))
-        }
-        exclude 'GradleStart**'
-        exclude '.cache'
-        exclude 'LICENSE*'
-    }
+    build.dependsOn(checkstyleMain)
+    build.dependsOn(checkstyleTest)
+    build.dependsOn(javadocJar)
 
     artifactoryPublish {
         publishConfigs('archives')
@@ -149,5 +145,19 @@ subprojects {
     license {
         header = rootProject.file("HEADER.txt")
         include '**/*.java'
+    }
+}
+
+configure(['bukkit', 'forge', 'sponge'].collect { project(":worldedit-$it") }) {
+    shadowJar {
+        classifier 'dist'
+        dependencies {
+            include(project(":worldedit-libs:core"))
+            include(project(":worldedit-libs:${project.name.replace("worldedit-", "")}"))
+            include(project(":worldedit-core"))
+        }
+        exclude 'GradleStart**'
+        exclude '.cache'
+        exclude 'LICENSE*'
     }
 }
