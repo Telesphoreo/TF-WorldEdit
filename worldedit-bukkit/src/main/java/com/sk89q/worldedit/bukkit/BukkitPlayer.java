@@ -31,19 +31,20 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.session.SessionKey;
 import com.sk89q.worldedit.util.HandSide;
+import com.sk89q.worldedit.util.formatting.text.Component;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockStateHolder;
 import com.sk89q.worldedit.world.block.BlockTypes;
 import com.sk89q.worldedit.world.gamemode.GameMode;
 import com.sk89q.worldedit.world.gamemode.GameModes;
-import com.sk89q.worldedit.util.formatting.text.TextComponent;
 import com.sk89q.worldedit.util.formatting.text.adapter.bukkit.TextAdapter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -127,7 +128,7 @@ public class BukkitPlayer extends AbstractPlayerActor {
     }
 
     @Override
-    public void print(TextComponent component) {
+    public void print(Component component) {
         TextAdapter.sendComponent(player, component);
     }
 
@@ -149,12 +150,12 @@ public class BukkitPlayer extends AbstractPlayerActor {
 
     @Override
     public GameMode getGameMode() {
-        return GameModes.get(player.getGameMode().name().toLowerCase());
+        return GameModes.get(player.getGameMode().name().toLowerCase(Locale.ROOT));
     }
 
     @Override
     public void setGameMode(GameMode gameMode) {
-        player.setGameMode(org.bukkit.GameMode.valueOf(gameMode.getId().toUpperCase()));
+        player.setGameMode(org.bukkit.GameMode.valueOf(gameMode.getId().toUpperCase(Locale.ROOT)));
     }
 
     @Override

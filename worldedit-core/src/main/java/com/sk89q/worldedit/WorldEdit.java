@@ -72,6 +72,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static com.sk89q.worldedit.event.platform.Interaction.HIT;
@@ -303,6 +304,17 @@ public final class WorldEdit {
             if (exts.size() != 1) {
                 exts = exts.subList(0, 1);
             }
+        } else {
+            int dot = filename.lastIndexOf('.');
+            if (dot < 0 || dot == filename.length() - 1) {
+                String currentExt = filename.substring(dot + 1);
+                if (exts.contains(currentExt) && checkFilename(filename)) {
+                    File f = new File(dir, filename);
+                    if (f.exists()) {
+                        return f;
+                    }
+                }
+            }
         }
         File result = null;
         for (Iterator<String> iter = exts.iterator(); iter.hasNext() && (result == null || (!isSave && !result.exists()));) {
@@ -317,7 +329,7 @@ public final class WorldEdit {
     private File getSafeFileWithExtension(File dir, String filename, String extension) {
         if (extension != null) {
             int dot = filename.lastIndexOf('.');
-            if (dot < 0 || !filename.substring(dot).equalsIgnoreCase(extension)) {
+            if (dot < 0 || dot == filename.length() - 1 || !filename.substring(dot + 1).equalsIgnoreCase(extension)) {
                 filename += "." + extension;
             }
         }
@@ -392,7 +404,7 @@ public final class WorldEdit {
      * @throws UnknownDirectionException thrown if the direction is not known
      */
     public BlockVector3 getDirection(Player player, String dirStr) throws UnknownDirectionException {
-        dirStr = dirStr.toLowerCase();
+        dirStr = dirStr.toLowerCase(Locale.ROOT);
 
         final Direction dir = getPlayerDirection(player, dirStr);
 
@@ -413,7 +425,7 @@ public final class WorldEdit {
      * @throws UnknownDirectionException thrown if the direction is not known
      */
     public BlockVector3 getDiagonalDirection(Player player, String dirStr) throws UnknownDirectionException {
-        dirStr = dirStr.toLowerCase();
+        dirStr = dirStr.toLowerCase(Locale.ROOT);
 
         final Direction dir = getPlayerDirection(player, dirStr);
 

@@ -53,6 +53,7 @@ import com.sk89q.worldedit.world.snapshot.Snapshot;
 import me.totalfreedom.worldedit.WorldEditHandler;
 
 import javax.annotation.Nullable;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -92,7 +93,7 @@ public class LocalSession {
     private transient int cuiVersion = -1;
     private transient boolean fastMode = false;
     private transient Mask mask;
-    private transient TimeZone timezone = TimeZone.getDefault();
+    private transient ZoneId timezone = ZoneId.systemDefault();
     private transient BlockVector3 cuiTemporaryBlock;
     private transient EditSession.ReorderMode reorderMode = EditSession.ReorderMode.MULTI_STAGE;
 
@@ -170,7 +171,7 @@ public class LocalSession {
      *
      * @return the timezone
      */
-    public TimeZone getTimeZone() {
+    public ZoneId getTimeZone() {
         return timezone;
     }
 
@@ -179,7 +180,7 @@ public class LocalSession {
      *
      * @param timezone the user's timezone
      */
-    public void setTimezone(TimeZone timezone) {
+    public void setTimezone(ZoneId timezone) {
         checkNotNull(timezone);
         this.timezone = timezone;
     }
@@ -854,9 +855,10 @@ public class LocalSession {
     public Calendar detectDate(String input) {
         checkNotNull(input);
 
-        Time.setTimeZone(getTimeZone());
+        TimeZone tz = TimeZone.getTimeZone(getTimeZone());
+        Time.setTimeZone(tz);
         Options opt = new com.sk89q.jchronic.Options();
-        opt.setNow(Calendar.getInstance(getTimeZone()));
+        opt.setNow(Calendar.getInstance(tz));
         Span date = Chronic.parse(input, opt);
         if (date == null) {
             return null;

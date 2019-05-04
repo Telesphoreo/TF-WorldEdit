@@ -69,15 +69,6 @@ artifactory {
             ivy = false
         }
     }
-
-    resolve {
-        repository {
-            repoKey = 'repo'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
-            maven = true
-        }
-    }
 }
 artifactoryPublish.skip = true
 
@@ -86,6 +77,11 @@ subprojects {
         mavenCentral()
         maven { url "http://maven.sk89q.com/repo/" }
         maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
+    }
+    configurations.all {
+        resolutionStrategy {
+            cacheChangingModulesFor 5, 'minutes'
+        }
     }
 }
 
