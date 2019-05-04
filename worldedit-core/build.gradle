@@ -14,6 +14,10 @@ configurations.all { Configuration it ->
     }
 }
 
+repositories {
+    maven { url "https://hub.spigotmc.org/nexus/content/groups/public" }
+}
+
 dependencies {
     compile project(':worldedit-libs:core')
     compile 'de.schlichtherle:truezip:6.8.3'
@@ -24,6 +28,7 @@ dependencies {
     compile 'com.google.code.gson:gson:2.8.0'
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
     compile 'org.slf4j:slf4j-api:1.7.26'
+    compile 'org.bukkit:bukkit:1.14-R0.1-SNAPSHOT' // zzz
 
     compileOnly project(':worldedit-libs:core:ap')
     annotationProcessor project(':worldedit-libs:core:ap')
