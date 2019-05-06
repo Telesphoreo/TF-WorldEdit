@@ -46,7 +46,7 @@ public class SchematicPaginationBox extends PaginationBox {
 
     @Override
     public Component getComponent(int number) {
-        checkArgument(number < files.length - 1 && number >= 0);
+        checkArgument(number < files.length && number >= 0);
         File file = files[number];
         Multimap<String, ClipboardFormat> exts = ClipboardFormats.getFileExtensionMap();
         String format = exts.get(Files.getFileExtension(file.getName()))
@@ -59,12 +59,12 @@ public class SchematicPaginationBox extends PaginationBox {
                 .content("")
                 .append(TextComponent.of("[L]")
                         .color(TextColor.GOLD)
-                        .clickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/schem load " + path))
-                        .hoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TextComponent.of("Click to load"))))
-                .append(Component.space())
+                        .clickEvent(ClickEvent.of(ClickEvent.Action.RUN_COMMAND, "/schem load " + path))
+                        .hoverEvent(HoverEvent.of(HoverEvent.Action.SHOW_TEXT, TextComponent.of("Click to load"))))
+                .append(TextComponent.space())
                 .append(TextComponent.of(path)
                         .color(TextColor.DARK_GREEN)
-                        .hoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, TextComponent.of(format))))
+                        .hoverEvent(HoverEvent.of(HoverEvent.Action.SHOW_TEXT, TextComponent.of(format))))
                 .build();
     }
 
