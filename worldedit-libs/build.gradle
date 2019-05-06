@@ -124,17 +124,6 @@ project("bukkit") {
         shade "net.kyori:text-adapter-bukkit:$textVersion"
     }
 }
-project("sponge") {
-    repositories {
-        maven {
-            name = "Sponge"
-            url = "https://repo.spongepowered.org/maven"
-        }
-    }
-    dependencies {
-        shade "net.kyori:text-adapter-spongeapi:$textVersion"
-    }
-}
 
 tasks.register("build") {
     dependsOn(subprojects.collect { it.tasks.named("build") })
