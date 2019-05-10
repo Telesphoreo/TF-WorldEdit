@@ -104,7 +104,6 @@ import com.sk89q.worldedit.world.World;
 import org.enginehub.piston.ColorConfig;
 import org.enginehub.piston.Command;
 import org.enginehub.piston.CommandManager;
-import org.enginehub.piston.DefaultCommandManagerService;
 import org.enginehub.piston.converter.ArgumentConverters;
 import org.enginehub.piston.exception.CommandException;
 import org.enginehub.piston.exception.CommandExecutionException;
@@ -151,6 +150,7 @@ public final class PlatformCommandManager {
 
     private final WorldEdit worldEdit;
     private final PlatformManager platformManager;
+    private final CommandManagerServiceImpl commandManagerService;
     private final CommandManager commandManager;
     private final InjectedValueStore globalInjectedValues;
     private final DynamicStreamHandler dynamicHandler = new DynamicStreamHandler();
@@ -168,7 +168,8 @@ public final class PlatformCommandManager {
         this.worldEdit = worldEdit;
         this.platformManager = platformManager;
         this.exceptionConverter = new WorldEditExceptionConverter(worldEdit);
-        this.commandManager = new CommandManagerServiceImpl().newCommandManager();
+        this.commandManagerService = new CommandManagerServiceImpl();
+        this.commandManager = commandManagerService.newCommandManager();
         this.globalInjectedValues = MapBackedValueStore.create();
         this.registration = new CommandRegistrationHandler(
             ImmutableList.of(
@@ -253,8 +254,7 @@ public final class PlatformCommandManager {
             cmd.description(TextComponent.of(desc));
             cmd.action(Command.Action.NULL_ACTION);
 
-            CommandManager manager = DefaultCommandManagerService.getInstance()
-                .newCommandManager();
+            CommandManager manager = commandManagerService.newCommandManager();
             this.registration.register(
                 manager,
                 registration,
@@ -299,8 +299,8 @@ public final class PlatformCommandManager {
             BrushCommandsRegistration.builder(),
             new BrushCommands(worldEdit),
             manager -> {
-                PaintBrushCommands.register(manager, registration);
-                ApplyBrushCommands.register(manager, registration);
+                PaintBrushCommands.register(commandManagerService, manager, registration);
+                ApplyBrushCommands.register(commandManagerService, manager, registration);
             }
         );
         registerSubCommands(
