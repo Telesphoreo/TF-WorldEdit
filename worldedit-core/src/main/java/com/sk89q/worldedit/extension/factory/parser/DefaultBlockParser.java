@@ -53,6 +53,7 @@ import me.totalfreedom.worldedit.WorldEditHandler;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Parses block input strings.
@@ -198,6 +199,12 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
         }
 
         return blockStates;
+    }
+
+    @Override
+    public Stream<String> getSuggestions(String input) {
+        // TODO Include states
+        return BlockType.REGISTRY.keySet().stream();
     }
 
     private BaseBlock parseLogic(String input, ParserContext context) throws InputParseException {

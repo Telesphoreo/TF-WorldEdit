@@ -20,6 +20,7 @@
 package com.sk89q.worldedit.internal.registry;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.enginehub.piston.converter.SuggestionHelper.limitByPrefix;
 
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.extension.input.InputParseException;
@@ -27,8 +28,11 @@ import com.sk89q.worldedit.extension.input.NoMatchException;
 import com.sk89q.worldedit.extension.input.ParserContext;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * An abstract implementation of a factory for internal usage.
@@ -74,6 +78,10 @@ public abstract class AbstractFactory<E> {
         }
 
         throw new NoMatchException("No match for '" + input + "'");
+    }
+
+    public List<String> getSuggestions(String input) {
+        return limitByPrefix(parsers.stream().flatMap(parser -> parser.getSuggestions(input)), input);
     }
 
     /**
