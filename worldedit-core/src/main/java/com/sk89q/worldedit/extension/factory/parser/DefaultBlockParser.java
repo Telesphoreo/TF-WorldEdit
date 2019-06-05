@@ -27,6 +27,7 @@ import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.blocks.MobSpawnerBlock;
 import com.sk89q.worldedit.blocks.SignBlock;
 import com.sk89q.worldedit.blocks.SkullBlock;
+import com.sk89q.worldedit.command.util.SuggestionHelper;
 import com.sk89q.worldedit.entity.Player;
 import com.sk89q.worldedit.extension.input.DisallowedUsageException;
 import com.sk89q.worldedit.extension.input.InputParseException;
@@ -38,7 +39,6 @@ import com.sk89q.worldedit.internal.registry.InputParser;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.registry.state.Property;
 import com.sk89q.worldedit.util.HandSide;
-import com.sk89q.worldedit.util.formatting.component.ErrorFormat;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockState;
@@ -102,7 +102,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
         }
     }
 
-    private static String[] EMPTY_STRING_ARRAY = new String[]{};
+    private static String[] EMPTY_STRING_ARRAY = {};
 
     /**
      * Backwards compatibility for wool colours in block syntax.
@@ -110,6 +110,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
      * @param string Input string
      * @return Mapped string
      */
+    @SuppressWarnings("ConstantConditions")
     private String woolMapper(String string) {
         switch (string.toLowerCase(Locale.ROOT)) {
             case "white":
@@ -170,11 +171,9 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                     Property<Object> propertyKey = (Property<Object>) type.getPropertyMap().get(parts[0]);
                     if (propertyKey == null) {
                         if (context.getActor() != null) {
-                            context.getActor().print(ErrorFormat.wrap("Unknown property ", parts[0], " for block ", type.getName(),
-                                    ". Defaulting to base."));
+                            throw new NoMatchException("Unknown property " + parts[0] + " for block " + type.getName());
                         } else {
                             WorldEdit.logger.warn("Unknown property " + parts[0] + " for block " + type.getName());
-//                            throw new NoMatchException("Unknown property " + parts[0] + " for block " + type.getName());
                         }
                         return Maps.newHashMap();
                     }
@@ -192,7 +191,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                 } catch (NoMatchException e) {
                     throw e; // Pass-through
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    WorldEdit.logger.warn("Unknown state '" + parseableData + "'", e);
                     throw new NoMatchException("Unknown state '" + parseableData + "'");
                 }
             }
@@ -203,8 +202,22 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
 
     @Override
     public Stream<String> getSuggestions(String input) {
-        // TODO Include states
-        return BlockType.REGISTRY.keySet().stream();
+        final int idx = input.lastIndexOf('[');
+        if (idx < 0) {
+            return SuggestionHelper.getNamespacedRegistrySuggestions(BlockType.REGISTRY, input);
+        }
+        String blockType = input.substring(0, idx);
+        BlockType type = BlockTypes.get(blockType.toLowerCase(Locale.ROOT));
+        if (type == null) {
+            return Stream.empty();
+        }
+
+        String props = input.substring(idx + 1);
+        if (props.isEmpty()) {
+            return type.getProperties().stream().map(p -> input + p.getName() + "=");
+        }
+
+        return SuggestionHelper.getBlockPropertySuggestions(blockType, props);
     }
 
     private BaseBlock parseLogic(String input, ParserContext context) throws InputParseException {
@@ -218,8 +231,10 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
         // Legacy matcher
         if (context.isTryingLegacy()) {
             try {
-                String[] split = blockAndExtraData[0].split(":");
-                if (split.length == 1) {
+                String[] split = blockAndExtraData[0].split(":", 2);
+                if (split.length == 0) {
+                    throw new InputParseException("Invalid colon.");
+                } else if (split.length == 1) {
                     state = LegacyMapper.getInstance().getBlockFromLegacy(Integer.parseInt(split[0]));
                 } else {
                     state = LegacyMapper.getInstance().getBlockFromLegacy(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
@@ -227,7 +242,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                 if (state != null) {
                     blockType = state.getBlockType();
                 }
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ignored) {
             }
         }
 
@@ -239,6 +254,13 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                 typeString = blockAndExtraData[0];
             } else {
                 typeString = blockAndExtraData[0].substring(0, stateStart);
+                if (stateStart + 1 >= blockAndExtraData[0].length()) {
+                    throw new InputParseException("Invalid format. Hanging bracket @ " + stateStart + ".");
+                }
+                int stateEnd = blockAndExtraData[0].lastIndexOf(']');
+                if (stateEnd < 0) {
+                    throw new InputParseException("Invalid format. Unclosed property.");
+                }
                 stateString = blockAndExtraData[0].substring(stateStart + 1, blockAndExtraData[0].length() - 1);
             }
             if (typeString.isEmpty()) {
@@ -283,23 +305,15 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
             } else {
                 // Attempt to lookup a block from ID or name.
                 blockType = BlockTypes.get(typeString.toLowerCase(Locale.ROOT));
+            }
 
-                if (blockType == null) {
-                    throw new NoMatchException("Does not match a valid block type: '" + input + "'");
-                }
+            if (blockType == null) {
+                throw new NoMatchException("Does not match a valid block type: '" + input + "'");
             }
 
             blockStates.putAll(parseProperties(blockType, stateProperties, context));
 
-            if (!context.isPreferringWildcard()) {
-                // No wildcards allowed => eliminate them. (Start with default state)
-                state = blockType.getDefaultState();
-                for (Map.Entry<Property<?>, Object> blockState : blockStates.entrySet()) {
-                    @SuppressWarnings("unchecked")
-                    Property<Object> objProp = (Property<Object>) blockState.getKey();
-                    state = state.with(objProp, blockState.getValue());
-                }
-            } else {
+            if (context.isPreferringWildcard()) {
                 FuzzyBlockState.Builder fuzzyBuilder = FuzzyBlockState.builder();
                 fuzzyBuilder.type(blockType);
                 for (Map.Entry<Property<?>, Object> blockState : blockStates.entrySet()) {
@@ -308,7 +322,19 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                     fuzzyBuilder.withProperty(objProp, blockState.getValue());
                 }
                 state = fuzzyBuilder.build();
+            } else {
+                // No wildcards allowed => eliminate them. (Start with default state)
+                state = blockType.getDefaultState();
+                for (Map.Entry<Property<?>, Object> blockState : blockStates.entrySet()) {
+                    @SuppressWarnings("unchecked")
+                    Property<Object> objProp = (Property<Object>) blockState.getKey();
+                    state = state.with(objProp, blockState.getValue());
+                }
             }
+        }
+        // this should be impossible but IntelliJ isn't that smart
+        if (blockType == null) {
+            throw new NoMatchException("Does not match a valid block type: '" + input + "'");
         }
 
         // Check if the item is allowed
@@ -351,6 +377,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                 }
                 return new MobSpawnerBlock(state, mobName);
             } else {
+                //noinspection ConstantConditions
                 return new MobSpawnerBlock(state, EntityTypes.PIG.getId());
             }
         } else if (blockType == BlockTypes.PLAYER_HEAD || blockType == BlockTypes.PLAYER_WALL_HEAD) {

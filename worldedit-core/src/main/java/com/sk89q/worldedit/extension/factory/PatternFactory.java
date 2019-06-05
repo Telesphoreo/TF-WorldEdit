@@ -44,19 +44,16 @@ public final class PatternFactory extends AbstractFactory<Pattern> {
      * @param worldEdit the WorldEdit instance
      */
     public PatternFactory(WorldEdit worldEdit) {
-        super(worldEdit);
+        super(worldEdit, new SingleBlockPatternParser(worldEdit));
 
         // split and parse each sub-pattern
         register(new RandomPatternParser(worldEdit));
 
         // individual patterns
-        register(new BlockCategoryPatternParser(worldEdit));
         register(new ClipboardPatternParser(worldEdit));
         register(new TypeOrStateApplyingPatternParser(worldEdit));
         register(new RandomStatePatternParser(worldEdit));
-
-        // inner-most pattern: just one block - must be last
-        register(new SingleBlockPatternParser(worldEdit));
+        register(new BlockCategoryPatternParser(worldEdit));
     }
 
 }

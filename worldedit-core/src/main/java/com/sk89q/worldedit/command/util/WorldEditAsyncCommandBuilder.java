@@ -19,32 +19,28 @@
 
 package com.sk89q.worldedit.command.util;
 
+import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.extension.platform.Actor;
-import org.enginehub.piston.Command;
-import org.enginehub.piston.inject.InjectedValueAccess;
-import org.enginehub.piston.inject.Key;
+import com.sk89q.worldedit.util.formatting.text.Component;
 
-import java.util.Set;
+import javax.annotation.Nullable;
+import java.util.concurrent.Callable;
 
-public class PermissionCondition implements Command.Condition {
-
-    private static final Key<Actor> ACTOR_KEY = Key.of(Actor.class);
-
-    private final Set<String> permissions;
-
-    public PermissionCondition(Set<String> permissions) {
-        this.permissions = permissions;
+/**
+ * For internal WorldEdit use only.
+ */
+public final class WorldEditAsyncCommandBuilder {
+    private WorldEditAsyncCommandBuilder() {
     }
 
-    public Set<String> getPermissions() {
-        return permissions;
-    }
-
-    @Override
-    public boolean satisfied(InjectedValueAccess context) {
-        return permissions.isEmpty() ||
-            context.injectedValue(ACTOR_KEY)
-            .map(actor -> permissions.stream().anyMatch(actor::hasPermission))
-            .orElse(false);
+    public static void createAndSendMessage(Actor actor, Callable<Component> task, @Nullable String desc) {
+        final AsyncCommandBuilder<Component> builder = AsyncCommandBuilder.wrap(task, actor);
+        if (desc != null) {
+            builder.sendMessageAfterDelay(desc);
+        }
+        builder
+                .onSuccess((String) null, actor::print)
+                .onFailure((String) null, WorldEdit.getInstance().getPlatformManager().getPlatformCommandManager().getExceptionConverter())
+                .buildAndExec(WorldEdit.getInstance().getExecutorService());
     }
 }

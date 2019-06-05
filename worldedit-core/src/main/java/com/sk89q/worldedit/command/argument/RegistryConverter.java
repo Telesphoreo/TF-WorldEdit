@@ -20,6 +20,7 @@
 package com.sk89q.worldedit.command.argument;
 
 import com.google.common.collect.ImmutableList;
+import com.sk89q.worldedit.command.util.SuggestionHelper;
 import com.sk89q.worldedit.registry.Keyed;
 import com.sk89q.worldedit.registry.Registry;
 import com.sk89q.worldedit.util.formatting.text.Component;
@@ -44,8 +45,7 @@ import org.enginehub.piston.inject.Key;
 
 import java.lang.reflect.Field;
 import java.util.List;
-
-import static org.enginehub.piston.converter.SuggestionHelper.limitByPrefix;
+import java.util.stream.Collectors;
 
 public final class RegistryConverter<V extends Keyed> implements ArgumentConverter<V> {
 
@@ -106,6 +106,6 @@ public final class RegistryConverter<V extends Keyed> implements ArgumentConvert
 
     @Override
     public List<String> getSuggestions(String input) {
-        return limitByPrefix(registry.keySet().stream(), input);
+        return SuggestionHelper.getRegistrySuggestions(registry, input).collect(Collectors.toList());
     }
 }
