@@ -41,6 +41,7 @@ import com.sk89q.worldedit.registry.state.Property;
 import com.sk89q.worldedit.util.HandSide;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockCategory;
 import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
@@ -48,7 +49,6 @@ import com.sk89q.worldedit.world.block.FuzzyBlockState;
 import com.sk89q.worldedit.world.entity.EntityType;
 import com.sk89q.worldedit.world.entity.EntityTypes;
 import com.sk89q.worldedit.world.registry.LegacyMapper;
-import me.totalfreedom.worldedit.WorldEditHandler;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -171,9 +171,9 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                     Property<Object> propertyKey = (Property<Object>) type.getPropertyMap().get(parts[0]);
                     if (propertyKey == null) {
                         if (context.getActor() != null) {
-                            throw new NoMatchException("Unknown property " + parts[0] + " for block " + type.getName());
+                            throw new NoMatchException("Unknown property " + parts[0] + " for block " + type.getId());
                         } else {
-                            WorldEdit.logger.warn("Unknown property " + parts[0] + " for block " + type.getName());
+                            WorldEdit.logger.warn("Unknown property " + parts[0] + " for block " + type.getId());
                         }
                         return Maps.newHashMap();
                     }
@@ -344,18 +344,11 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                     && worldEdit.getConfiguration().disallowedBlocks.contains(blockType.getId())) {
                 throw new DisallowedUsageException("You are not allowed to use '" + input + "'");
             }
-
-            // TFM start
-            if (actor instanceof Player
-                    && worldEdit.getConfiguration().disallowedBlocks.contains(blockType.getId())
-                    && !WorldEditHandler.isSuperAdmin((Player) actor)) {
-                throw new DisallowedUsageException("You are not allowed to use '" + input + "'");
-            }
-            // TFM end
         }
 
-
-        if (blockType == BlockTypes.SIGN || blockType == BlockTypes.WALL_SIGN) {
+        final BlockCategory signCategory = BlockCategory.REGISTRY.get("minecraft:signs");
+        if (blockType == BlockTypes.SIGN || blockType == BlockTypes.WALL_SIGN
+                || signCategory != null && signCategory.contains(blockType)) {
             // Allow special sign text syntax
             String[] text = new String[4];
             text[0] = blockAndExtraData.length > 1 ? blockAndExtraData[1] : "";
