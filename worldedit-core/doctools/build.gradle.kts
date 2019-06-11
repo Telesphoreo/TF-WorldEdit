@@ -10,6 +10,7 @@ tasks.withType<KotlinCompile> {
 
 repositories {
     jcenter()
+    maven(url = "https://hub.spigotmc.org/nexus/content/groups/public")
 }
 
 dependencies {
