@@ -1,11 +1,12 @@
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'maven'
+apply plugin: 'java-library'
 
 repositories {
     maven { url "https://hub.spigotmc.org/nexus/content/groups/public" }
     maven { url "https://repo.codemc.org/repository/maven-public" }
-    maven { url 'https://papermc.io/repo/repository/maven-public/' }
+    maven { url "https://papermc.io/repo/repository/maven-public/" }
 }
 
 configurations.all { Configuration it ->
@@ -15,13 +16,14 @@ configurations.all { Configuration it ->
 }
 
 dependencies {
-    compile project(':worldedit-core')
-    compile project(':worldedit-libs:bukkit')
-    compile 'com.sk89q:dummypermscompat:1.10'
-    compile 'org.bukkit:bukkit:1.14.2-R0.1-SNAPSHOT' // zzz
-    compile "io.papermc:paperlib:1.0.1"
-    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.8.1'
-    compile 'org.bstats:bstats-bukkit:1.4'
+    api project(':worldedit-core')
+    api project(':worldedit-libs:bukkit')
+    api 'org.bukkit:bukkit:1.13.2-R0.1-SNAPSHOT' // zzz
+    compileOnly 'com.destroystokyo.paper:paper-api:1.13.2-R0.1-SNAPSHOT'
+    implementation 'io.papermc:paperlib:1.0.2'
+    compileOnly 'com.sk89q:dummypermscompat:1.10'
+    implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.8.1'
+    implementation 'org.bstats:bstats-bukkit:1.4'
     testCompile 'org.mockito:mockito-core:1.9.0-rc1'
 }
 
@@ -53,7 +55,7 @@ shadowJar {
             include(dependency("org.bstats:bstats-bukkit:1.4"))
         }
         relocate ("io.papermc.lib", "com.sk89q.worldedit.bukkit.paperlib") {
-            include(dependency("io.papermc:paperlib:1.0.1"))
+            include(dependency("io.papermc:paperlib:1.0.2"))
         }
     }
 }

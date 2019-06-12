@@ -471,7 +471,7 @@ public class WorldEditPlugin extends JavaPlugin implements TabCompleter {
         AsyncTabCompleteListener() {
         }
 
-        /*@SuppressWarnings("UnnecessaryFullyQualifiedName")
+        @SuppressWarnings("UnnecessaryFullyQualifiedName")
         @EventHandler(ignoreCancelled = true)
         public void onAsyncTabComplete(com.destroystokyo.paper.event.server.AsyncTabCompleteEvent event) {
             if (!event.isCommand()) return;
@@ -489,6 +489,6 @@ public class WorldEditPlugin extends JavaPlugin implements TabCompleter {
 
             event.setCompletions(CommandUtil.fixSuggestions(event.getBuffer(), suggestEvent.getSuggestions()));
             event.setHandled(true);
-        }*/
+        }
     }
 }
