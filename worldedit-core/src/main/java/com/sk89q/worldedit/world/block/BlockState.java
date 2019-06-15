@@ -26,7 +26,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.sk89q.jnbt.CompoundTag;
 import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.extension.platform.Capability;
+import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
 import com.sk89q.worldedit.registry.state.Property;
+import com.sk89q.worldedit.world.registry.BlockRegistry;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -35,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -43,8 +47,13 @@ import java.util.Set;
 @SuppressWarnings("unchecked")
 public class BlockState implements BlockStateHolder<BlockState> {
 
+    static {
+        BlockStateIdAccess.setBlockStateStateId(x -> x.internalId);
+    }
+
     private final BlockType blockType;
     private final Map<Property<?>, Object> values;
+    private OptionalInt internalId = OptionalInt.empty();
 
     private BaseBlock emptyBaseBlock;
 
@@ -57,7 +66,14 @@ public class BlockState implements BlockStateHolder<BlockState> {
         this.emptyBaseBlock = new BaseBlock(this);
     }
 
+    BlockState initializeId(BlockRegistry registry) {
+        this.internalId = registry.getInternalBlockStateId(this);
+        BlockStateIdAccess.register(this);
+        return this;
+    }
+
     static Map<Map<Property<?>, Object>, BlockState> generateStateMap(BlockType blockType) {
+        BlockRegistry registry = WorldEdit.getInstance().getPlatformManager().queryCapability(Capability.WORLD_EDITING).getRegistries().getBlockRegistry();
         Map<Map<Property<?>, Object>, BlockState> stateMap = new LinkedHashMap<>();
         List<? extends Property<?>> properties = blockType.getProperties();
 
@@ -78,13 +94,14 @@ public class BlockState implements BlockStateHolder<BlockState> {
                     valueMap.put(property, value);
                     stateMaker.setState(property, value);
                 }
+                stateMaker.initializeId(registry);
                 stateMap.put(valueMap, stateMaker);
             }
         }
 
         if (stateMap.isEmpty()) {
             // No properties.
-            stateMap.put(new LinkedHashMap<>(), new BlockState(blockType));
+            stateMap.put(new LinkedHashMap<>(), new BlockState(blockType).initializeId(registry));
         }
 
         for (BlockState state : stateMap.values()) {

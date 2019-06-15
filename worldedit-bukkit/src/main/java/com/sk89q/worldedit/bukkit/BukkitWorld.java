@@ -22,6 +22,7 @@ package com.sk89q.worldedit.bukkit;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.WorldEditException;
+import com.sk89q.worldedit.blocks.BaseItem;
 import com.sk89q.worldedit.blocks.BaseItemStack;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.entity.BaseEntity;
@@ -30,6 +31,7 @@ import com.sk89q.worldedit.math.BlockVector2;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.regions.Region;
+import com.sk89q.worldedit.util.Direction;
 import com.sk89q.worldedit.util.TreeGenerator;
 import com.sk89q.worldedit.world.AbstractWorld;
 import com.sk89q.worldedit.world.biome.BiomeType;
@@ -46,6 +48,7 @@ import org.bukkit.block.Chest;
 import org.bukkit.entity.Entity;
 import org.bukkit.inventory.DoubleChestInventory;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -236,15 +239,12 @@ public class BukkitWorld extends AbstractWorld {
     @Override
     public boolean clearContainerBlockContents(BlockVector3 pt) {
         Block block = getWorld().getBlockAt(pt.getBlockX(), pt.getBlockY(), pt.getBlockZ());
-        if (block == null) {
-            return false;
-        }
         BlockState state = block.getState();
-        if (!(state instanceof org.bukkit.inventory.InventoryHolder)) {
+        if (!(state instanceof InventoryHolder)) {
             return false;
         }
 
-        org.bukkit.inventory.InventoryHolder chest = (org.bukkit.inventory.InventoryHolder) state;
+        InventoryHolder chest = (InventoryHolder) state;
         Inventory inven = chest.getInventory();
         if (chest instanceof Chest) {
             inven = getBlockInventory((Chest) chest);
@@ -411,8 +411,21 @@ public class BukkitWorld extends AbstractWorld {
         getWorld().getBlockAt(pt.getBlockX(), pt.getBlockY(), pt.getBlockZ()).breakNaturally();
     }
 
+    private static volatile boolean hasWarnedImplError = false;
+
     @Override
     public com.sk89q.worldedit.world.block.BlockState getBlock(BlockVector3 position) {
+        BukkitImplAdapter adapter = WorldEditPlugin.getInstance().getBukkitImplAdapter();
+        if (adapter != null) {
+            try {
+                return adapter.getBlock(BukkitAdapter.adapt(getWorld(), position)).toImmutableState();
+            } catch (Exception e) {
+                if (!hasWarnedImplError) {
+                    hasWarnedImplError = true;
+                    logger.warn("Unable to retrieve block via impl adapter", e);
+                }
+            }
+        }
         Block bukkitBlock = getWorld().getBlockAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
         return BukkitAdapter.adapt(bukkitBlock.getBlockData());
     }
@@ -456,6 +469,16 @@ public class BukkitWorld extends AbstractWorld {
         if (adapter != null) {
             adapter.notifyAndLightBlock(BukkitAdapter.adapt(getWorld(), position), previousType);
             return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean useItem(BlockVector3 position, BaseItem item, Direction face) {
+        BukkitImplAdapter adapter = WorldEditPlugin.getInstance().getBukkitImplAdapter();
+        if (adapter != null) {
+            return adapter.simulateItemUse(getWorld(), position, item, face);
         }
 
         return false;
