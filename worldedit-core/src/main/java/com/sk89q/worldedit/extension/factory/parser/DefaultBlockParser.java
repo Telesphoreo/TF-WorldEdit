@@ -349,14 +349,14 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
         }
 
         // TFM start
-        if (context.isRestricted())
-        {
+        if (context.isRestricted()) {
             Actor actor = context.requireActor();
             if (actor instanceof Player
                     && worldEdit.getConfiguration().disallowedBlocks.contains(blockType.getId())
                     && !WorldEditHandler.isSuperAdmin((Player) actor)) {
                 throw new DisallowedUsageException("You are not allowed to use '" + input + "'");
             }
+        }
 
         if (!context.isTryingLegacy()) {
             return state.toBaseBlock();
