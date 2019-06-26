@@ -129,21 +129,28 @@ public class SpongeSchematicReader extends NBTSchematicReader {
         BlockVector3 origin;
         Region region;
         Map<String, Tag> schematic = schematicTag.getValue();
-        Map<String, Tag> metadata = requireTag(schematic, "Metadata", CompoundTag.class).getValue();
 
         int width = requireTag(schematic, "Width", ShortTag.class).getValue();
         int height = requireTag(schematic, "Height", ShortTag.class).getValue();
         int length = requireTag(schematic, "Length", ShortTag.class).getValue();
 
-        int[] offsetParts = requireTag(schematic, "Offset", IntArrayTag.class).getValue();
-        if (offsetParts.length != 3) {
-            throw new IOException("Invalid offset specified in schematic.");
+        IntArrayTag offsetTag = getTag(schematic, "Offset", IntArrayTag.class);
+        int[] offsetParts;
+        if (offsetTag != null) {
+            offsetParts = offsetTag.getValue();
+            if  (offsetParts.length != 3) {
+                throw new IOException("Invalid offset specified in schematic.");
+            }
+        } else {
+            offsetParts = new int[] {0, 0, 0};
         }
 
         BlockVector3 min = BlockVector3.at(offsetParts[0], offsetParts[1], offsetParts[2]);
 
-        if (metadata.containsKey("WEOffsetX")) {
+        CompoundTag metadataTag = getTag(schematic, "Metadata", CompoundTag.class);
+        if (metadataTag != null && metadataTag.containsKey("WEOffsetX")) {
             // We appear to have WorldEdit Metadata
+            Map<String, Tag> metadata = metadataTag.getValue();
             int offsetX = requireTag(metadata, "WEOffsetX", IntTag.class).getValue();
             int offsetY = requireTag(metadata, "WEOffsetY", IntTag.class).getValue();
             int offsetZ = requireTag(metadata, "WEOffsetZ", IntTag.class).getValue();
@@ -155,9 +162,9 @@ public class SpongeSchematicReader extends NBTSchematicReader {
             region = new CuboidRegion(origin, origin.add(width, height, length).subtract(BlockVector3.ONE));
         }
 
-        int paletteMax = requireTag(schematic, "PaletteMax", IntTag.class).getValue();
+        IntTag paletteMaxTag = getTag(schematic, "PaletteMax", IntTag.class);
         Map<String, Tag> paletteObject = requireTag(schematic, "Palette", CompoundTag.class).getValue();
-        if (paletteObject.size() != paletteMax) {
+        if (paletteMaxTag != null && paletteObject.size() != paletteMaxTag.getValue()) {
             throw new IOException("Block palette size does not match expected size.");
         }
 
@@ -199,15 +206,17 @@ public class SpongeSchematicReader extends NBTSchematicReader {
             for (Map<String, Tag> tileEntity : tileEntityTags) {
                 int[] pos = requireTag(tileEntity, "Pos", IntArrayTag.class).getValue();
                 final BlockVector3 pt = BlockVector3.at(pos[0], pos[1], pos[2]);
+                Map<String, Tag> values = Maps.newHashMap(tileEntity);
+                values.put("x", new IntTag(pt.getBlockX()));
+                values.put("y", new IntTag(pt.getBlockY()));
+                values.put("z", new IntTag(pt.getBlockZ()));
+                values.put("id", values.get("Id"));
+                values.remove("Id");
+                values.remove("Pos");
                 if (fixer != null) {
-                    Map<String, Tag> values = Maps.newHashMap(tileEntity);
-                    values.put("x", new IntTag(pt.getBlockX()));
-                    values.put("y", new IntTag(pt.getBlockY()));
-                    values.put("z", new IntTag(pt.getBlockZ()));
-                    values.put("id", values.get("Id"));
-                    values.remove("Id");
-                    values.remove("Pos");
                     tileEntity = fixer.fixUp(DataFixer.FixTypes.BLOCK_ENTITY, new CompoundTag(values), dataVersion).getValue();
+                } else {
+                    tileEntity = values;
                 }
                 tileEntitiesMap.put(pt, tileEntity);
             }
@@ -227,7 +236,7 @@ public class SpongeSchematicReader extends NBTSchematicReader {
             while (true) {
                 value |= (blocks[i] & 127) << (varintLength++ * 7);
                 if (varintLength > 5) {
-                    throw new RuntimeException("VarInt too big (probably corrupted data)");
+                    throw new IOException("VarInt too big (probably corrupted data)");
                 }
                 if ((blocks[i] & 128) != 128) {
                     i++;
@@ -277,9 +286,8 @@ public class SpongeSchematicReader extends NBTSchematicReader {
         if (maxTag.getValue() != paletteTag.getValue().size()) {
             throw new IOException("Biome palette size does not match expected size.");
         }
-        Map<String, Tag> paletteEntries = paletteTag.getValue();
 
-        for (Entry<String, Tag> palettePart : paletteEntries.entrySet()) {
+        for (Entry<String, Tag> palettePart : paletteTag.getValue().entrySet()) {
             String key = palettePart.getKey();
             if (fixer != null) {
                 key = fixer.fixUp(DataFixer.FixTypes.BIOME, key, dataVersion);
@@ -311,7 +319,7 @@ public class SpongeSchematicReader extends NBTSchematicReader {
             while (true) {
                 bVal |= (biomes[biomeJ] & 127) << (varIntLength++ * 7);
                 if (varIntLength > 5) {
-                    throw new RuntimeException("VarInt too big (probably corrupted data)");
+                    throw new IOException("VarInt too big (probably corrupted data)");
                 }
                 if (((biomes[biomeJ] & 128) != 128)) {
                     biomeJ++;
