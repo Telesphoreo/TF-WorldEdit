@@ -38,7 +38,7 @@ println """
 
 allprojects {
     group = 'com.sk89q.worldedit'
-    version = '7.0.1-SNAPSHOT'
+    version = '7.0.0-TF'
 }
 
 if (!project.hasProperty("artifactory_contextUrl")) ext.artifactory_contextUrl = "http://localhost"
@@ -85,10 +85,10 @@ subprojects {
     }
 }
 
-configure(['core', 'bukkit', 'forge', 'sponge', 'fabric'].collect { project(":worldedit-$it") }) {
+configure(['core', 'bukkit'].collect { project(":worldedit-$it") }) {
     apply plugin: 'java'
     apply plugin: 'maven'
-    apply plugin: 'checkstyle'
+    // apply plugin: 'checkstyle'
     apply plugin: 'com.github.johnrengelman.shadow'
     apply plugin: 'com.jfrog.artifactory'
     apply plugin: 'net.minecrell.licenser'
@@ -98,8 +98,8 @@ configure(['core', 'bukkit', 'forge', 'sponge', 'fabric'].collect { project(":wo
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
-    checkstyle.configFile = new File(rootProject.projectDir, "config/checkstyle/checkstyle.xml")
-    checkstyle.toolVersion = '7.6.1'
+    // checkstyle.configFile = new File(rootProject.projectDir, "config/checkstyle/checkstyle.xml")
+    // checkstyle.toolVersion = '7.6.1'
 
     if (JavaVersion.current().isJava8Compatible()) {
         // Java 8 turns on doclint which we fail
@@ -130,8 +130,8 @@ configure(['core', 'bukkit', 'forge', 'sponge', 'fabric'].collect { project(":wo
         build.dependsOn(sourcesJar)
     }
 
-    build.dependsOn(checkstyleMain)
-    build.dependsOn(checkstyleTest)
+    // build.dependsOn(checkstyleMain)
+    // build.dependsOn(checkstyleTest)
     build.dependsOn(javadocJar)
 
     artifactoryPublish {
@@ -144,7 +144,7 @@ configure(['core', 'bukkit', 'forge', 'sponge', 'fabric'].collect { project(":wo
     }
 }
 
-configure(['bukkit', 'forge', 'sponge', 'fabric'].collect { project(":worldedit-$it") }) {
+configure(['bukkit'].collect { project(":worldedit-$it") }) {
     shadowJar {
         classifier 'dist'
         dependencies {
