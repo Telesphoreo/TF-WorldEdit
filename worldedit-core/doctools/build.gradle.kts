@@ -1,16 +1,13 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.3.31"
+    kotlin("jvm") version "1.3.41"
 }
+
+applyCommonConfiguration()
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
-}
-
-repositories {
-    jcenter()
-    maven(url = "https://hub.spigotmc.org/nexus/content/groups/public")
 }
 
 dependencies {

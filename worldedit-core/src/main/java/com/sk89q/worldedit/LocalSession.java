@@ -47,8 +47,10 @@ import com.sk89q.worldedit.regions.selector.CuboidRegionSelector;
 import com.sk89q.worldedit.regions.selector.RegionSelectorType;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.session.request.Request;
+import com.sk89q.worldedit.util.Countable;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.block.BaseBlock;
+import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldedit.world.snapshot.Snapshot;
 import me.totalfreedom.worldedit.WorldEditHandler;
@@ -56,8 +58,10 @@ import me.totalfreedom.worldedit.WorldEditHandler;
 import javax.annotation.Nullable;
 import java.time.ZoneId;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,6 +100,7 @@ public class LocalSession {
     private transient ZoneId timezone = ZoneId.systemDefault();
     private transient BlockVector3 cuiTemporaryBlock;
     private transient EditSession.ReorderMode reorderMode = EditSession.ReorderMode.MULTI_STAGE;
+    private transient List<Countable<BlockState>> lastDistribution;
 
     // Saved properties
     private String lastScript;
@@ -977,5 +982,21 @@ public class LocalSession {
      */
     public String getNavWandItem() {
         return navWandItem;
+    }
+
+    /**
+     * Get the last block distribution stored in this session.
+     *
+     * @return block distribution or {@code null}
+     */
+    public List<Countable<BlockState>> getLastDistribution() {
+        return lastDistribution == null ? null : Collections.unmodifiableList(lastDistribution);
+    }
+
+    /**
+     * Store a block distribution in this session.
+     */
+    public void setLastDistribution(List<Countable<BlockState>> dist) {
+        lastDistribution = dist;
     }
 }
