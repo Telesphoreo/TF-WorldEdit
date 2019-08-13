@@ -17,32 +17,36 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.extension.factory.parser.mask;
+package com.sk89q.worldedit.math;
 
-import com.google.common.collect.ImmutableList;
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.extension.input.ParserContext;
-import com.sk89q.worldedit.function.mask.ExistingBlockMask;
-import com.sk89q.worldedit.function.mask.Mask;
-import com.sk89q.worldedit.internal.registry.SimpleInputParser;
+public final class BitMath {
 
-import java.util.List;
-
-public class ExistingMaskParser extends SimpleInputParser<Mask> {
-
-    private final List<String> aliases = ImmutableList.of("#existing");
-
-    public ExistingMaskParser(WorldEdit worldEdit) {
-        super(worldEdit);
+    public static int mask(int bits) {
+        return ~(~0 << bits);
     }
 
-    @Override
-    public List<String> getMatchedAliases() {
-        return aliases;
+    public static int unpackX(long packed) {
+        return extractSigned(packed, 0, 26);
     }
 
-    @Override
-    public Mask parseFromSimpleInput(String input, ParserContext context) {
-        return new ExistingBlockMask(context.getExtent());
+    public static int unpackZ(long packed) {
+        return extractSigned(packed, 26, 26);
     }
+
+    public static int unpackY(long packed) {
+        return extractSigned(packed, 26 + 26, 12);
+    }
+
+    public static int extractSigned(long i, int shift, int bits) {
+        return fixSign((int) (i >> shift) & mask(bits), bits);
+    }
+
+    public static int fixSign(int i, int bits) {
+        // Using https://stackoverflow.com/a/29266331/436524
+        return i << (32 - bits) >> (32 - bits);
+    }
+
+    private BitMath() {
+    }
+
 }
