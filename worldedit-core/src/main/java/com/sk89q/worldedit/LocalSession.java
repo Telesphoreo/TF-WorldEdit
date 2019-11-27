@@ -762,9 +762,11 @@ public class LocalSession {
             updateServerCUI(actor);
         }
 
+        // TFM start
         if (actor instanceof com.sk89q.worldedit.entity.Player) {
             WorldEditHandler.selectionChanged((com.sk89q.worldedit.entity.Player) actor);
         }
+        // TFM end
     }
 
     /**

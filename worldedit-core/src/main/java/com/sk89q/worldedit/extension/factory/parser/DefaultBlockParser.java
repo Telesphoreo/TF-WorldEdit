@@ -356,6 +356,7 @@ public class DefaultBlockParser extends InputParser<BaseBlock> {
                 throw new DisallowedUsageException("You are not allowed to use '" + input + "'");
             }
         }
+        // TFM end
 
         if (!context.isTryingLegacy()) {
             return state.toBaseBlock();
