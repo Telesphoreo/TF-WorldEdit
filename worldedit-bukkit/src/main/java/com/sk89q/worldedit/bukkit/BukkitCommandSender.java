@@ -22,21 +22,20 @@ package com.sk89q.worldedit.bukkit;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.sk89q.worldedit.extension.platform.Actor;
-import com.sk89q.worldedit.internal.cui.CUIEvent;
+import com.sk89q.worldedit.extension.platform.AbstractNonPlayerActor;
 import com.sk89q.worldedit.session.SessionKey;
 import com.sk89q.worldedit.util.auth.AuthorizationException;
+import com.sk89q.worldedit.util.formatting.WorldEditText;
 import com.sk89q.worldedit.util.formatting.text.Component;
 import com.sk89q.worldedit.util.formatting.text.adapter.bukkit.TextAdapter;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.io.File;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
 
-public class BukkitCommandSender implements Actor {
+public class BukkitCommandSender extends AbstractNonPlayerActor {
 
     /**
      * One time generated ID.
@@ -95,12 +94,7 @@ public class BukkitCommandSender implements Actor {
 
     @Override
     public void print(Component component) {
-        TextAdapter.sendComponent(sender, component);
-    }
-
-    @Override
-    public boolean canDestroyBedrock() {
-        return true;
+        TextAdapter.sendComponent(sender, WorldEditText.format(component));
     }
 
     @Override
@@ -118,41 +112,22 @@ public class BukkitCommandSender implements Actor {
     }
 
     @Override
-    public boolean isPlayer() {
-        return false;
-    }
-
-    @Override
-    public File openFileOpenDialog(String[] extensions) {
-        return null;
-    }
-
-    @Override
-    public File openFileSaveDialog(String[] extensions) {
-        return null;
-    }
-
-    @Override
-    public void dispatchCUIEvent(CUIEvent event) {
-    }
-
-    @Override
     public SessionKey getSessionKey() {
         return new SessionKey() {
             @Nullable
             @Override
             public String getName() {
-                return null;
+                return sender.getName();
             }
 
             @Override
             public boolean isActive() {
-                return false;
+                return true;
             }
 
             @Override
             public boolean isPersistent() {
-                return false;
+                return true;
             }
 
             @Override

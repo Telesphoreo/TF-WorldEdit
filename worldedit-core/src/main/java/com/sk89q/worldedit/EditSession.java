@@ -22,6 +22,8 @@ package com.sk89q.worldedit;
 import com.sk89q.worldedit.entity.BaseEntity;
 import com.sk89q.worldedit.entity.Entity;
 import com.sk89q.worldedit.event.extent.EditSessionEvent;
+import com.sk89q.worldedit.extension.platform.Capability;
+import com.sk89q.worldedit.extension.platform.Watchdog;
 import com.sk89q.worldedit.extent.ChangeSetExtent;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.extent.MaskingExtent;
@@ -38,6 +40,7 @@ import com.sk89q.worldedit.extent.world.BlockQuirkExtent;
 import com.sk89q.worldedit.extent.world.ChunkLoadingExtent;
 import com.sk89q.worldedit.extent.world.FastModeExtent;
 import com.sk89q.worldedit.extent.world.SurvivalModeExtent;
+import com.sk89q.worldedit.extent.world.WatchdogTickingExtent;
 import com.sk89q.worldedit.function.GroundFunction;
 import com.sk89q.worldedit.function.RegionMaskingFilter;
 import com.sk89q.worldedit.function.biome.BiomeReplace;
@@ -77,8 +80,8 @@ import com.sk89q.worldedit.history.changeset.BlockOptimizedHistory;
 import com.sk89q.worldedit.history.changeset.ChangeSet;
 import com.sk89q.worldedit.internal.expression.Expression;
 import com.sk89q.worldedit.internal.expression.ExpressionException;
-import com.sk89q.worldedit.internal.expression.runtime.ExpressionTimeoutException;
-import com.sk89q.worldedit.internal.expression.runtime.RValue;
+import com.sk89q.worldedit.internal.expression.ExpressionTimeoutException;
+import com.sk89q.worldedit.internal.expression.LocalSlot.Variable;
 import com.sk89q.worldedit.math.BlockVector2;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.MathUtils;
@@ -188,6 +191,7 @@ public class EditSession implements Extent, AutoCloseable {
     private final MultiStageReorder reorderExtent;
     private final MaskingExtent maskingExtent;
     private final BlockChangeLimiter changeLimiter;
+    private final List<WatchdogTickingExtent> watchdogExtents = new ArrayList<>(2);
 
     private final Extent bypassReorderHistory;
     private final Extent bypassHistory;
@@ -214,10 +218,18 @@ public class EditSession implements Extent, AutoCloseable {
         this.world = world;
 
         if (world != null) {
+            Watchdog watchdog = WorldEdit.getInstance().getPlatformManager()
+                .queryCapability(Capability.GAME_HOOKS).getWatchdog();
             Extent extent;
 
             // These extents are ALWAYS used
             extent = fastModeExtent = new FastModeExtent(world, false);
+            if (watchdog != null) {
+                // Reset watchdog before world placement
+                WatchdogTickingExtent watchdogExtent = new WatchdogTickingExtent(extent, watchdog);
+                extent = watchdogExtent;
+                watchdogExtents.add(watchdogExtent);
+            }
             extent = survivalExtent = new SurvivalModeExtent(extent, world);
             extent = new BlockQuirkExtent(extent, world);
             extent = new ChunkLoadingExtent(extent, world);
@@ -230,6 +242,13 @@ public class EditSession implements Extent, AutoCloseable {
             extent = reorderExtent = new MultiStageReorder(extent, false);
             extent = chunkBatchingExtent = new ChunkBatchingExtent(extent);
             extent = wrapExtent(extent, eventBus, event, Stage.BEFORE_REORDER);
+            if (watchdog != null) {
+                // reset before buffering extents, since they may buffer all changes
+                // before the world-placement reset can happen, and still cause halts
+                WatchdogTickingExtent watchdogExtent = new WatchdogTickingExtent(extent, watchdog);
+                extent = watchdogExtent;
+                watchdogExtents.add(watchdogExtent);
+            }
             this.bypassHistory = new DataValidatorExtent(extent, world);
 
             // These extents can be skipped by calling smartSetBlock()
@@ -533,6 +552,24 @@ public class EditSession implements Extent, AutoCloseable {
         setReorderMode(ReorderMode.NONE);
         if (chunkBatchingExtent != null) {
             chunkBatchingExtent.setEnabled(false);
+        }
+    }
+
+    /**
+     * Check if this session will tick the watchdog.
+     *
+     * @return {@code true} if any watchdog extent is enabled
+     */
+    public boolean isTickingWatchdog() {
+        return watchdogExtents.stream().anyMatch(WatchdogTickingExtent::isEnabled);
+    }
+
+    /**
+     * Set all watchdog extents to the given mode.
+     */
+    public void setTickingWatchdog(boolean active) {
+        for (WatchdogTickingExtent extent : watchdogExtents) {
+            extent.setEnabled(active);
         }
     }
 
@@ -1952,8 +1989,10 @@ public class EditSession implements Extent, AutoCloseable {
         final Expression expression = Expression.compile(expressionString, "x", "y", "z", "type", "data");
         expression.optimize();
 
-        final RValue typeVariable = expression.getVariable("type", false);
-        final RValue dataVariable = expression.getVariable("data", false);
+        final Variable typeVariable = expression.getSlots().getVariable("type")
+            .orElseThrow(IllegalStateException::new);
+        final Variable dataVariable = expression.getSlots().getVariable("data")
+            .orElseThrow(IllegalStateException::new);
 
         final WorldEditExpressionEnvironment environment = new WorldEditExpressionEnvironment(this, unit, zero);
         expression.setEnvironment(environment);
@@ -2015,9 +2054,12 @@ public class EditSession implements Extent, AutoCloseable {
         final Expression expression = Expression.compile(expressionString, "x", "y", "z");
         expression.optimize();
 
-        final RValue x = expression.getVariable("x", false);
-        final RValue y = expression.getVariable("y", false);
-        final RValue z = expression.getVariable("z", false);
+        final Variable x = expression.getSlots().getVariable("x")
+            .orElseThrow(IllegalStateException::new);
+        final Variable y = expression.getSlots().getVariable("y")
+            .orElseThrow(IllegalStateException::new);
+        final Variable z = expression.getSlots().getVariable("z")
+            .orElseThrow(IllegalStateException::new);
 
         final WorldEditExpressionEnvironment environment = new WorldEditExpressionEnvironment(this, unit, zero);
         expression.setEnvironment(environment);

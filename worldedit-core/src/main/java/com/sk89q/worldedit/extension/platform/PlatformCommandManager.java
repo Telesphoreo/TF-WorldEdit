@@ -26,6 +26,7 @@ import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.IncompleteRegionException;
 import com.sk89q.worldedit.LocalConfiguration;
 import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.MissingWorldException;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.command.ApplyBrushCommands;
 import com.sk89q.worldedit.command.BiomeCommands;
@@ -61,7 +62,6 @@ import com.sk89q.worldedit.command.SnapshotUtilCommandsRegistration;
 import com.sk89q.worldedit.command.SuperPickaxeCommands;
 import com.sk89q.worldedit.command.SuperPickaxeCommandsRegistration;
 import com.sk89q.worldedit.command.ToolCommands;
-import com.sk89q.worldedit.command.ToolCommandsRegistration;
 import com.sk89q.worldedit.command.ToolUtilCommands;
 import com.sk89q.worldedit.command.ToolUtilCommandsRegistration;
 import com.sk89q.worldedit.command.UtilityCommands;
@@ -79,6 +79,7 @@ import com.sk89q.worldedit.command.argument.FactoryConverter;
 import com.sk89q.worldedit.command.argument.RegionFactoryConverter;
 import com.sk89q.worldedit.command.argument.RegistryConverter;
 import com.sk89q.worldedit.command.argument.VectorConverter;
+import com.sk89q.worldedit.command.argument.WorldConverter;
 import com.sk89q.worldedit.command.argument.ZonedDateTimeConverter;
 import com.sk89q.worldedit.command.util.PermissionCondition;
 import com.sk89q.worldedit.command.util.SubCommandPermissionCondition;
@@ -105,7 +106,8 @@ import com.sk89q.worldedit.util.logging.LogFormat;
 import com.sk89q.worldedit.world.World;
 import org.enginehub.piston.Command;
 import org.enginehub.piston.CommandManager;
-import org.enginehub.piston.TextConfig;
+import org.enginehub.piston.config.ConfigHolder;
+import org.enginehub.piston.config.TextConfig;
 import org.enginehub.piston.converter.ArgumentConverters;
 import org.enginehub.piston.exception.CommandException;
 import org.enginehub.piston.exception.CommandExecutionException;
@@ -150,10 +152,6 @@ public final class PlatformCommandManager {
     private static final Logger log = LoggerFactory.getLogger(PlatformCommandManager.class);
     private static final java.util.logging.Logger COMMAND_LOG =
         java.util.logging.Logger.getLogger("com.sk89q.worldedit.CommandLog");
-
-    static {
-        TextConfig.setCommandPrefix("/");
-    }
 
     private final WorldEdit worldEdit;
     private final PlatformManager platformManager;
@@ -218,34 +216,55 @@ public final class PlatformCommandManager {
         BooleanConverter.register(commandManager);
         EntityRemoverConverter.register(commandManager);
         RegionFactoryConverter.register(commandManager);
+        WorldConverter.register(commandManager);
     }
 
     private void registerAlwaysInjectedValues() {
         globalInjectedValues.injectValue(Key.of(Region.class, Selection.class),
-            context -> {
-                LocalSession localSession = context.injectedValue(Key.of(LocalSession.class))
-                    .orElseThrow(() -> new IllegalStateException("No LocalSession"));
-                return context.injectedValue(Key.of(Player.class))
-                    .map(player -> {
-                        try {
-                            return localSession.getSelection(player.getWorld());
-                        } catch (IncompleteRegionException e) {
-                            exceptionConverter.convert(e);
-                            throw new AssertionError("Should have thrown a new exception.");
-                        }
-                    });
-            });
+                context -> {
+                    LocalSession localSession = context.injectedValue(Key.of(LocalSession.class))
+                            .orElseThrow(() -> new IllegalStateException("No LocalSession"));
+                    return context.injectedValue(Key.of(World.class))
+                            .map(world -> {
+                                try {
+                                    return localSession.getSelection(world);
+                                } catch (IncompleteRegionException e) {
+                                    exceptionConverter.convert(e);
+                                    throw new AssertionError("Should have thrown a new exception.", e);
+                                }
+                            });
+                });
         globalInjectedValues.injectValue(Key.of(EditSession.class),
-            context -> {
-                LocalSession localSession = context.injectedValue(Key.of(LocalSession.class))
-                    .orElseThrow(() -> new IllegalStateException("No LocalSession"));
-                return context.injectedValue(Key.of(Player.class))
-                    .map(player -> {
-                        EditSession editSession = localSession.createEditSession(player);
-                        editSession.enableStandardMode();
-                        return editSession;
-                    });
-            });
+                context -> {
+                    LocalSession localSession = context.injectedValue(Key.of(LocalSession.class))
+                            .orElseThrow(() -> new IllegalStateException("No LocalSession"));
+                    return context.injectedValue(Key.of(Actor.class))
+                            .map(actor -> {
+                                EditSession editSession = localSession.createEditSession(actor);
+                                editSession.enableStandardMode();
+                                return editSession;
+                            });
+                });
+        globalInjectedValues.injectValue(Key.of(World.class),
+                context -> {
+                    LocalSession localSession = context.injectedValue(Key.of(LocalSession.class))
+                            .orElseThrow(() -> new IllegalStateException("No LocalSession"));
+                    return context.injectedValue(Key.of(Actor.class))
+                            .map(actor -> {
+                                try {
+                                    if (localSession.hasWorldOverride()) {
+                                        return localSession.getWorldOverride();
+                                    } else if (actor instanceof Locatable && ((Locatable) actor).getExtent() instanceof World) {
+                                        return (World) ((Locatable) actor).getExtent();
+                                    } else {
+                                        throw new MissingWorldException();
+                                    }
+                                } catch (MissingWorldException e) {
+                                    exceptionConverter.convert(e);
+                                    throw new AssertionError("Should have thrown a new exception.", e);
+                                }
+                            });
+                });
     }
 
     private <CI> void registerSubCommands(String name, List<String> aliases, String desc,
@@ -376,11 +395,7 @@ public final class PlatformCommandManager {
             SnapshotUtilCommandsRegistration.builder(),
             new SnapshotUtilCommands(worldEdit)
         );
-        this.registration.register(
-            commandManager,
-            ToolCommandsRegistration.builder(),
-            new ToolCommands(worldEdit)
-        );
+        ToolCommands.register(registration, commandManager, commandManagerService, worldEdit);
         this.registration.register(
             commandManager,
             ToolUtilCommandsRegistration.builder(),

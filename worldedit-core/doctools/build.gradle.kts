@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.3.41"
+    application
 }
 
 repositories {
@@ -12,6 +13,11 @@ applyCommonConfiguration()
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+application.mainClassName = "com.sk89q.worldedit.internal.util.DocumentationPrinter"
+tasks.named<JavaExec>("run") {
+    workingDir = rootProject.projectDir
 }
 
 dependencies {

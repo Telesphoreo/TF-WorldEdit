@@ -26,16 +26,17 @@ import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.command.util.CommandPermissions;
 import com.sk89q.worldedit.command.util.CommandPermissionsConditionGenerator;
+import com.sk89q.worldedit.command.util.HookMode;
 import com.sk89q.worldedit.command.util.WorldEditAsyncCommandBuilder;
 import com.sk89q.worldedit.entity.Player;
 import com.sk89q.worldedit.extension.input.DisallowedUsageException;
 import com.sk89q.worldedit.extension.platform.Actor;
+import com.sk89q.worldedit.extension.platform.Capability;
 import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.util.formatting.component.PaginationBox;
 import com.sk89q.worldedit.util.formatting.text.Component;
+import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.item.ItemType;
-import me.totalfreedom.worldedit.WorldEditHandler;
-import org.bukkit.ChatColor;
 import org.enginehub.piston.annotation.Command;
 import org.enginehub.piston.annotation.CommandContainer;
 import org.enginehub.piston.annotation.param.Arg;
@@ -70,54 +71,28 @@ public class GeneralCommands {
     }
 
     @Command(
-            name = "/limit",
-            desc = "Modify block change limit"
+        name = "/limit",
+        desc = "Modify block change limit"
     )
     @CommandPermissions("worldedit.limit")
-    public void limit(Player player, LocalSession session,
+    public void limit(Actor actor, LocalSession session,
                       @Arg(desc = "The limit to set", def = "")
-                              Integer limit,
-                      @Arg(name = "player", desc = "Set this player's limit", def = "")
-                              String playerName) throws WorldEditException {
+                          Integer limit) {
 
         LocalConfiguration config = worldEdit.getConfiguration();
-        boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
+        boolean mayDisable = actor.hasPermission("worldedit.limit.unrestricted");
+
         limit = limit == null ? config.defaultChangeLimit : Math.max(-1, limit);
-        playerName = playerName == null ? player.getName() : playerName;
-        final org.bukkit.entity.Player sessionPlayer = WorldEditHandler.getPlayer(playerName);
-
-        session = worldEdit.getSessionManager().findByName(playerName);
-
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
-                player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
+                actor.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
                 return;
             }
         }
 
-        if (session == null) {
-            player.printError("Could not resolve session for " + playerName);
-            return;
-        }
-
-        limit = WorldEditHandler.limitChanged(player, limit, playerName);
-
-        if (limit < -1) {
-            return;
-        }
-
         session.setBlockChangeLimit(limit);
-
-        if (!playerName.equals(player.getName())) {
-            player.print("Block limit for " + sessionPlayer.getName() + " set to " + limit + ".");
-            sessionPlayer.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
-        } else {
-            if (limit != config.defaultChangeLimit) {
-                player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
-            } else {
-                player.print("Block change limit set to " + limit + ".");
-            }
-        }
+        actor.print("Block change limit set to " + limit + "."
+                + (limit == config.defaultChangeLimit ? "" : " (Use //limit to go back to the default.)"));
     }
 
     @Command(
@@ -125,22 +100,22 @@ public class GeneralCommands {
         desc = "Modify evaluation timeout time."
     )
     @CommandPermissions("worldedit.timeout")
-    public void timeout(Player player, LocalSession session,
+    public void timeout(Actor actor, LocalSession session,
                         @Arg(desc = "The timeout time to set", def = "")
                             Integer limit) {
         LocalConfiguration config = worldEdit.getConfiguration();
-        boolean mayDisable = player.hasPermission("worldedit.timeout.unrestricted");
+        boolean mayDisable = actor.hasPermission("worldedit.timeout.unrestricted");
 
         limit = limit == null ? config.calculationTimeout : Math.max(-1, limit);
         if (!mayDisable && config.maxCalculationTimeout > -1) {
             if (limit > config.maxCalculationTimeout) {
-                player.printError("Your maximum allowable timeout is " + config.maxCalculationTimeout + " ms.");
+                actor.printError("Your maximum allowable timeout is " + config.maxCalculationTimeout + " ms.");
                 return;
             }
         }
 
         session.setTimeout(limit);
-        player.print("Timeout time set to " + limit + " ms."
+        actor.print("Timeout time set to " + limit + " ms."
                 + (limit == config.calculationTimeout ? "" : " (Use //timeout to go back to the default.)"));
     }
 
@@ -149,21 +124,21 @@ public class GeneralCommands {
         desc = "Toggle fast mode"
     )
     @CommandPermissions("worldedit.fast")
-    public void fast(Player player, LocalSession session,
+    public void fast(Actor actor, LocalSession session,
                      @Arg(desc = "The new fast mode state", def = "")
                         Boolean fastMode) {
         boolean hasFastMode = session.hasFastMode();
         if (fastMode != null && fastMode == hasFastMode) {
-            player.printError("Fast mode already " + (fastMode ? "enabled" : "disabled") + ".");
+            actor.printError("Fast mode already " + (fastMode ? "enabled" : "disabled") + ".");
             return;
         }
 
         if (hasFastMode) {
             session.setFastMode(false);
-            player.print("Fast mode disabled.");
+            actor.print("Fast mode disabled.");
         } else {
             session.setFastMode(true);
-            player.print("Fast mode enabled. Lighting in the affected chunks may be wrong and/or you may need to rejoin to see changes.");
+            actor.print("Fast mode enabled. Lighting in the affected chunks may be wrong and/or you may need to rejoin to see changes.");
         }
     }
 
@@ -172,14 +147,14 @@ public class GeneralCommands {
         desc = "Sets the reorder mode of WorldEdit"
     )
     @CommandPermissions("worldedit.reorder")
-    public void reorderMode(Player player, LocalSession session,
+    public void reorderMode(Actor actor, LocalSession session,
                             @Arg(desc = "The reorder mode", def = "")
                                 EditSession.ReorderMode reorderMode) {
         if (reorderMode == null) {
-            player.print("The reorder mode is " + session.getReorderMode().getDisplayName());
+            actor.print("The reorder mode is " + session.getReorderMode().getDisplayName());
         } else {
             session.setReorderMode(reorderMode);
-            player.print("The reorder mode is now " + session.getReorderMode().getDisplayName());
+            actor.print("The reorder mode is now " + session.getReorderMode().getDisplayName());
         }
     }
 
@@ -211,20 +186,58 @@ public class GeneralCommands {
     }
 
     @Command(
+        name = "/world",
+        desc = "Sets the world override"
+    )
+    @CommandPermissions("worldedit.world")
+    public void world(Actor actor, LocalSession session,
+            @Arg(desc = "The world override", def = "") World world) {
+        session.setWorldOverride(world);
+        if (world == null) {
+            actor.print("Removed world override.");
+        } else {
+            actor.print("Set the world override to " + world.getId() + ". (Use //world to go back to default)");
+        }
+    }
+
+    @Command(
+        name = "/watchdog",
+        desc = "Changes watchdog hook state.",
+        descFooter = "This is dependent on platform implementation. " +
+            "Not all platforms support watchdog hooks, or contain a watchdog."
+    )
+    @CommandPermissions("worldedit.watchdog")
+    public void watchdog(Actor actor, LocalSession session,
+                         @Arg(desc = "The mode to set the watchdog hook to", def = "")
+                             HookMode hookMode) {
+        if (WorldEdit.getInstance().getPlatformManager().queryCapability(Capability.GAME_HOOKS).getWatchdog() == null) {
+            actor.printError("This platform has no watchdog hook.");
+            return;
+        }
+        boolean previousMode = session.isTickingWatchdog();
+        if (hookMode != null && (hookMode == HookMode.ACTIVE) == previousMode) {
+            actor.printError("Watchdog hook already " + (previousMode ? "active" : "inactive") + ".");
+            return;
+        }
+        session.setTickingWatchdog(!previousMode);
+        actor.print("Watchdog hook now " + (previousMode ? "inactive" : "active") + ".");
+    }
+
+    @Command(
         name = "gmask",
         aliases = {"/gmask"},
         desc = "Set the global mask"
     )
     @CommandPermissions("worldedit.global-mask")
-    public void gmask(Player player, LocalSession session,
+    public void gmask(Actor actor, LocalSession session,
                       @Arg(desc = "The mask to set", def = "")
                           Mask mask) {
         if (mask == null) {
             session.setMask(null);
-            player.print("Global mask disabled.");
+            actor.print("Global mask disabled.");
         } else {
             session.setMask(mask);
-            player.print("Global mask set.");
+            actor.print("Global mask set.");
         }
     }
 

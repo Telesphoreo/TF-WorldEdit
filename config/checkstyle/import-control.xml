@@ -42,10 +42,19 @@
     <allow pkg="com.google.auto"/>
     <allow pkg="it.unimi.dsi.fastutil"/>
 
+    <subpackage name="internal.expression">
+      <allow pkg="org.antlr.v4"/>
+    </subpackage>
+
     <subpackage name="bukkit">
       <allow pkg="org.bukkit"/>
       <allow pkg="org.bstats.bukkit"/>
       <allow pkg="io.papermc.lib"/>
+    </subpackage>
+
+    <subpackage name="cli">
+      <allow pkg="org.apache.logging.log4j"/>
+      <allow pkg="org.apache.commons.cli" />
     </subpackage>
 
     <subpackage name="forge">
