@@ -42,6 +42,8 @@ import com.sk89q.worldedit.util.formatting.text.TextComponent;
 import com.sk89q.worldedit.util.formatting.text.TranslatableComponent;
 import com.sk89q.worldedit.util.formatting.text.format.TextColor;
 import com.sk89q.worldedit.world.item.ItemType;
+import me.totalfreedom.worldedit.WorldEditHandler;
+import net.md_5.bungee.api.ChatColor;
 import org.enginehub.piston.annotation.Command;
 import org.enginehub.piston.annotation.CommandContainer;
 import org.enginehub.piston.annotation.param.Arg;
@@ -74,31 +76,54 @@ public class GeneralCommands {
     }
 
     @Command(
-        name = "/limit",
-        desc = "Modify block change limit"
+            name = "/limit",
+            desc = "Modify block change limit"
     )
     @CommandPermissions("worldedit.limit")
-    public void limit(Actor actor, LocalSession session,
+    public void limit(Player player, LocalSession session,
                       @Arg(desc = "The limit to set", def = "")
-                          Integer limit) {
+                              Integer limit,
+                      @Arg(name = "player", desc = "Set this player's limit", def = "")
+                              String playerName) throws WorldEditException {
 
         LocalConfiguration config = worldEdit.getConfiguration();
-        boolean mayDisable = actor.hasPermission("worldedit.limit.unrestricted");
-
+        boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
         limit = limit == null ? config.defaultChangeLimit : Math.max(-1, limit);
+        playerName = playerName == null ? player.getName() : playerName;
+        final org.bukkit.entity.Player sessionPlayer = WorldEditHandler.getPlayer(playerName);
+
+        session = worldEdit.getSessionManager().findByName(playerName);
+
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
-                actor.printError(TranslatableComponent.of("worldedit.limit.too-high", TextComponent.of(config.maxChangeLimit)));
+                player.printError(TranslatableComponent.of("worldedit.limit.too-high", TextComponent.of(config.maxChangeLimit)));
                 return;
             }
         }
 
-        session.setBlockChangeLimit(limit);
-        Component component = TextComponent.empty().append(TranslatableComponent.of("worldedit.limit.set", TextComponent.of(limit)));
-        if (limit != config.defaultChangeLimit) {
-            component.append(TextComponent.space()).append(TranslatableComponent.of("worldedit.limit.return-to-default", TextColor.GRAY));
+        if (session == null) {
+            player.printError("Could not resolve session for " + playerName);
+            return;
         }
-        actor.printInfo(component);
+
+        limit = WorldEditHandler.limitChanged(player, limit, playerName);
+
+        if (limit < -1) {
+            return;
+        }
+
+        session.setBlockChangeLimit(limit);
+
+        if (!playerName.equals(player.getName())) {
+            player.print("Block limit for " + sessionPlayer.getName() + " set to " + limit + ".");
+            sessionPlayer.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
+        } else {
+            if (limit != config.defaultChangeLimit) {
+                player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
+            } else {
+                player.print("Block change limit set to " + limit + ".");
+            }
+        }
     }
 
     @Command(
