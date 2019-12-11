@@ -19,6 +19,8 @@
 
 package com.sk89q.worldedit.command;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.LocalConfiguration;
 import com.sk89q.worldedit.LocalSession;
@@ -36,9 +38,10 @@ import com.sk89q.worldedit.function.mask.Mask;
 import com.sk89q.worldedit.util.formatting.component.PaginationBox;
 import com.sk89q.worldedit.util.formatting.text.Component;
 import com.sk89q.worldedit.world.World;
+import com.sk89q.worldedit.util.formatting.text.TextComponent;
+import com.sk89q.worldedit.util.formatting.text.TranslatableComponent;
+import com.sk89q.worldedit.util.formatting.text.format.TextColor;
 import com.sk89q.worldedit.world.item.ItemType;
-import me.totalfreedom.worldedit.WorldEditHandler;
-import org.bukkit.ChatColor;
 import org.enginehub.piston.annotation.Command;
 import org.enginehub.piston.annotation.CommandContainer;
 import org.enginehub.piston.annotation.param.Arg;
@@ -51,8 +54,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * General WorldEdit commands.
@@ -73,54 +74,31 @@ public class GeneralCommands {
     }
 
     @Command(
-            name = "/limit",
-            desc = "Modify block change limit"
+        name = "/limit",
+        desc = "Modify block change limit"
     )
     @CommandPermissions("worldedit.limit")
-    public void limit(Player player, LocalSession session,
+    public void limit(Actor actor, LocalSession session,
                       @Arg(desc = "The limit to set", def = "")
-                              Integer limit,
-                      @Arg(name = "player", desc = "Set this player's limit", def = "")
-                              String playerName) throws WorldEditException {
+                          Integer limit) {
 
         LocalConfiguration config = worldEdit.getConfiguration();
-        boolean mayDisable = player.hasPermission("worldedit.limit.unrestricted");
+        boolean mayDisable = actor.hasPermission("worldedit.limit.unrestricted");
+
         limit = limit == null ? config.defaultChangeLimit : Math.max(-1, limit);
-        playerName = playerName == null ? player.getName() : playerName;
-        final org.bukkit.entity.Player sessionPlayer = WorldEditHandler.getPlayer(playerName);
-
-        session = worldEdit.getSessionManager().findByName(playerName);
-
         if (!mayDisable && config.maxChangeLimit > -1) {
             if (limit > config.maxChangeLimit) {
-                player.printError("Your maximum allowable limit is " + config.maxChangeLimit + ".");
+                actor.printError(TranslatableComponent.of("worldedit.limit.too-high", TextComponent.of(config.maxChangeLimit)));
                 return;
             }
         }
 
-        if (session == null) {
-            player.printError("Could not resolve session for " + playerName);
-            return;
-        }
-
-        limit = WorldEditHandler.limitChanged(player, limit, playerName);
-
-        if (limit < -1) {
-            return;
-        }
-
         session.setBlockChangeLimit(limit);
-
-        if (!playerName.equals(player.getName())) {
-            player.print("Block limit for " + sessionPlayer.getName() + " set to " + limit + ".");
-            sessionPlayer.sendMessage(ChatColor.LIGHT_PURPLE + player.getName() + " set your block limit to " + limit + ".");
-        } else {
-            if (limit != config.defaultChangeLimit) {
-                player.print("Block change limit set to " + limit + ". (Use //limit to go back to the default.)");
-            } else {
-                player.print("Block change limit set to " + limit + ".");
-            }
+        Component component = TextComponent.empty().append(TranslatableComponent.of("worldedit.limit.set", TextComponent.of(limit)));
+        if (limit != config.defaultChangeLimit) {
+            component.append(TextComponent.space()).append(TranslatableComponent.of("worldedit.limit.return-to-default", TextColor.GRAY));
         }
+        actor.printInfo(component);
     }
 
     @Command(
@@ -137,14 +115,17 @@ public class GeneralCommands {
         limit = limit == null ? config.calculationTimeout : Math.max(-1, limit);
         if (!mayDisable && config.maxCalculationTimeout > -1) {
             if (limit > config.maxCalculationTimeout) {
-                actor.printError("Your maximum allowable timeout is " + config.maxCalculationTimeout + " ms.");
+                actor.printError(TranslatableComponent.of("worldedit.timeout.too-high", TextComponent.of(config.maxCalculationTimeout)));
                 return;
             }
         }
 
         session.setTimeout(limit);
-        actor.print("Timeout time set to " + limit + " ms."
-                + (limit == config.calculationTimeout ? "" : " (Use //timeout to go back to the default.)"));
+        Component component = TextComponent.empty().append(TranslatableComponent.of("worldedit.timeout.set", TextComponent.of(limit)));
+        if (limit != config.calculationTimeout) {
+            component.append(TranslatableComponent.of("worldedit.timeout.return-to-default", TextColor.GRAY));
+        }
+        actor.printInfo(component);
     }
 
     @Command(
@@ -157,16 +138,16 @@ public class GeneralCommands {
                         Boolean fastMode) {
         boolean hasFastMode = session.hasFastMode();
         if (fastMode != null && fastMode == hasFastMode) {
-            actor.printError("Fast mode already " + (fastMode ? "enabled" : "disabled") + ".");
+            actor.printError(TranslatableComponent.of(fastMode ? "worldedit.fast.enabled.already" : "worldedit.fast.disabled.already"));
             return;
         }
 
         if (hasFastMode) {
             session.setFastMode(false);
-            actor.print("Fast mode disabled.");
+            actor.printInfo(TranslatableComponent.of("worldedit.fast.disabled"));
         } else {
             session.setFastMode(true);
-            actor.print("Fast mode enabled. Lighting in the affected chunks may be wrong and/or you may need to rejoin to see changes.");
+            actor.printInfo(TranslatableComponent.of("worldedit.fast.enabled"));
         }
     }
 
@@ -179,10 +160,10 @@ public class GeneralCommands {
                             @Arg(desc = "The reorder mode", def = "")
                                 EditSession.ReorderMode reorderMode) {
         if (reorderMode == null) {
-            actor.print("The reorder mode is " + session.getReorderMode().getDisplayName());
+            actor.printInfo(TranslatableComponent.of("worldedit.reorder.current", TextComponent.of(session.getReorderMode().getDisplayName())));
         } else {
             session.setReorderMode(reorderMode);
-            actor.print("The reorder mode is now " + session.getReorderMode().getDisplayName());
+            actor.printInfo(TranslatableComponent.of("worldedit.reorder.set", TextComponent.of(session.getReorderMode().getDisplayName())));
         }
     }
 
@@ -199,17 +180,18 @@ public class GeneralCommands {
         }
         boolean useServerCui = session.shouldUseServerCUI();
         if (drawSelection != null && drawSelection == useServerCui) {
-            player.printError("Server CUI already " + (useServerCui ? "enabled" : "disabled") + ".");
+            player.printError(TranslatableComponent.of("worldedit.drawsel." + (useServerCui ? "enabled" : "disabled") + ".already"));
+
             return;
         }
         if (useServerCui) {
             session.setUseServerCUI(false);
             session.updateServerCUI(player);
-            player.print("Server CUI disabled.");
+            player.printInfo(TranslatableComponent.of("worldedit.drawsel.disabled"));
         } else {
             session.setUseServerCUI(true);
             session.updateServerCUI(player);
-            player.print("Server CUI enabled. This only supports cuboid regions, with a maximum size of 32x32x32.");
+            player.printInfo(TranslatableComponent.of("worldedit.drawsel.enabled"));
         }
     }
 
@@ -222,9 +204,9 @@ public class GeneralCommands {
             @Arg(desc = "The world override", def = "") World world) {
         session.setWorldOverride(world);
         if (world == null) {
-            actor.print("Removed world override.");
+            actor.printInfo(TranslatableComponent.of("worldedit.world.remove"));
         } else {
-            actor.print("Set the world override to " + world.getId() + ". (Use //world to go back to default)");
+            actor.printInfo(TranslatableComponent.of("worldedit.world.set", TextComponent.of(world.getId())));
         }
     }
 
@@ -239,16 +221,16 @@ public class GeneralCommands {
                          @Arg(desc = "The mode to set the watchdog hook to", def = "")
                              HookMode hookMode) {
         if (WorldEdit.getInstance().getPlatformManager().queryCapability(Capability.GAME_HOOKS).getWatchdog() == null) {
-            actor.printError("This platform has no watchdog hook.");
+            actor.printError(TranslatableComponent.of("worldedit.watchdog.no-hook"));
             return;
         }
         boolean previousMode = session.isTickingWatchdog();
         if (hookMode != null && (hookMode == HookMode.ACTIVE) == previousMode) {
-            actor.printError("Watchdog hook already " + (previousMode ? "active" : "inactive") + ".");
+            actor.printError(TranslatableComponent.of(previousMode ? "worldedit.watchdog.active.already" : "worldedit.watchdog.inactive.already"));
             return;
         }
         session.setTickingWatchdog(!previousMode);
-        actor.print("Watchdog hook now " + (previousMode ? "inactive" : "active") + ".");
+        actor.printInfo(TranslatableComponent.of(previousMode ? "worldedit.watchdog.inactive" : "worldedit.watchdog.active"));
     }
 
     @Command(
@@ -262,10 +244,10 @@ public class GeneralCommands {
                           Mask mask) {
         if (mask == null) {
             session.setMask(null);
-            actor.print("Global mask disabled.");
+            actor.printInfo(TranslatableComponent.of("worldedit.gmask.disabled"));
         } else {
             session.setMask(mask);
-            actor.print("Global mask set.");
+            actor.printInfo(TranslatableComponent.of("worldedit.gmask.set"));
         }
     }
 
@@ -276,9 +258,9 @@ public class GeneralCommands {
     )
     public void togglePlace(Player player, LocalSession session) {
         if (session.togglePlacementPosition()) {
-            player.print("Now placing at pos #1.");
+            player.printInfo(TranslatableComponent.of("worldedit.toggleplace.pos1"));
         } else {
-            player.print("Now placing at the block you stand in.");
+            player.printInfo(TranslatableComponent.of("worldedit.toggleplace.player"));
         }
     }
 
@@ -299,16 +281,16 @@ public class GeneralCommands {
                                List<String> query) {
         String search = String.join(" ", query);
         if (search.length() <= 2) {
-            actor.printError("Enter a longer search string (len > 2).");
+            actor.printError(TranslatableComponent.of("worldedit.searchitem.too-short"));
             return;
         }
         if (blocksOnly && itemsOnly) {
-            actor.printError("You cannot use both the 'b' and 'i' flags simultaneously.");
+            actor.printError(TranslatableComponent.of("worldedit.searchitem.either-b-or-i"));
             return;
         }
 
         WorldEditAsyncCommandBuilder.createAndSendMessage(actor, new ItemSearcher(search, blocksOnly, itemsOnly, page),
-                "(Please wait... searching items.)");
+                TranslatableComponent.of("worldedit.searchitem.searching"));
     }
 
     private static class ItemSearcher implements Callable<Component> {
