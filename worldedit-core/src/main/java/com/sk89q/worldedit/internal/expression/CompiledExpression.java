@@ -17,29 +17,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.world.registry;
+package com.sk89q.worldedit.internal.expression;
 
-import com.sk89q.worldedit.world.item.ItemType;
+/**
+ * Represents a "compiled" expression.
+ */
+public interface CompiledExpression {
 
-import javax.annotation.Nullable;
+    Double execute(ExecutionData executionData);
 
-public interface ItemRegistry {
-
-    /**
-     * Gets the name for the given item.
-     *
-     * @param itemType the item
-     * @return The name, or null if it's unknown
-     */
-    @Nullable
-    String getName(ItemType itemType);
-
-    /**
-     * Get the material for the given item.
-     *
-     * @param itemType the item
-     * @return the material, or null if the material information is not known
-     */
-    @Nullable
-    ItemMaterial getMaterial(ItemType itemType);
 }

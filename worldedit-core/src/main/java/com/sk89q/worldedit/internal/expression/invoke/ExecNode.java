@@ -17,29 +17,18 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.world.registry;
+package com.sk89q.worldedit.internal.expression.invoke;
 
-import com.sk89q.worldedit.world.item.ItemType;
+import org.antlr.v4.runtime.ParserRuleContext;
 
-import javax.annotation.Nullable;
+import java.lang.invoke.MethodHandle;
 
-public interface ItemRegistry {
+class ExecNode {
+    final ParserRuleContext ctx;
+    final MethodHandle handle;
 
-    /**
-     * Gets the name for the given item.
-     *
-     * @param itemType the item
-     * @return The name, or null if it's unknown
-     */
-    @Nullable
-    String getName(ItemType itemType);
-
-    /**
-     * Get the material for the given item.
-     *
-     * @param itemType the item
-     * @return the material, or null if the material information is not known
-     */
-    @Nullable
-    ItemMaterial getMaterial(ItemType itemType);
+    ExecNode(ParserRuleContext ctx, MethodHandle handle) {
+        this.ctx = ctx;
+        this.handle = handle;
+    }
 }
