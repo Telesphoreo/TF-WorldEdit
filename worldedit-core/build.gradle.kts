@@ -103,7 +103,7 @@ sourceSets {
 
 val crowdinApiKey = "crowdin_apikey"
 
-if (project.hasProperty(crowdinApiKey)) {
+if (project.hasProperty(crowdinApiKey) && !gradle.startParameter.isOffline) {
     tasks.named<UploadSourceFileTask>("crowdinUpload") {
         apiKey = "${project.property(crowdinApiKey)}"
         projectId = "worldedit-core"
