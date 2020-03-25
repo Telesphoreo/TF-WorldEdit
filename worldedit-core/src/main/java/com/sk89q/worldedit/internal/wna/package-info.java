@@ -17,27 +17,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.world.biome;
-
-import com.sk89q.worldedit.world.registry.BiomeRegistry;
-
 /**
- * Provides information about a biome.
+ * "WNA", or WorldEdit Native Access.
  *
- * @deprecated This no longer returns useful information.
+ * Contains internal helper functions for sharing code between platforms.
  */
-@Deprecated
-public interface BiomeData {
-
-    /**
-     * Get the name of the biome, which does not have to follow any
-     * particular convention.
-     *
-     * @return the biome's name
-     * @deprecated This method does not work on the server.
-     *     Use {@link BiomeRegistry#getRichName(BiomeType)}.
-     */
-    @Deprecated
-    String getName();
-
-}
+package com.sk89q.worldedit.internal.wna;

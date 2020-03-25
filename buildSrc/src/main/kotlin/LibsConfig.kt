@@ -1,11 +1,13 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.internal.HasConvention
 import org.gradle.api.plugins.MavenRepositoryHandlerConvention
 import org.gradle.api.tasks.Upload
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.apply
+import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getPlugin
 import org.gradle.kotlin.dsl.invoke
@@ -25,6 +27,11 @@ fun Project.applyLibrariesConfiguration() {
 
     group = "${rootProject.group}.worldedit-libs"
 
+    val relocations = mapOf(
+            "net.kyori.text" to "com.sk89q.worldedit.util.formatting.text",
+            "net.kyori.minecraft" to "com.sk89q.worldedit.util.kyori"
+    )
+
     tasks.register<ShadowJar>("jar") {
         configurations = listOf(project.configurations["shade"])
         archiveClassifier.set("")
@@ -36,7 +43,9 @@ fun Project.applyLibrariesConfiguration() {
             exclude(dependency("org.slf4j:slf4j-api"))
         }
 
-        relocate("net.kyori.text", "com.sk89q.worldedit.util.formatting.text")
+        relocations.forEach { (from, to) ->
+            relocate(from, to)
+        }
     }
     val altConfigFiles = { artifactType: String ->
         val deps = configurations["shade"].incoming.dependencies
@@ -61,13 +70,15 @@ fun Project.applyLibrariesConfiguration() {
         from({
             altConfigFiles("sources")
         })
-        val filePattern = Regex("(.*)net/kyori/text((?:/|$).*)")
-        val textPattern = Regex("net\\.kyori\\.text")
-        eachFile {
-            filter {
-                it.replaceFirst(textPattern, "com.sk89q.worldedit.util.formatting.text")
+        relocations.forEach { (from, to) ->
+            val filePattern = Regex("(.*)${from.replace('.', '/')}((?:/|$).*)")
+            val textPattern = Regex.fromLiteral(from)
+            eachFile {
+                filter {
+                    it.replaceFirst(textPattern, to)
+                }
+                path = path.replaceFirst(filePattern, "$1${to.replace('.', '/')}$2")
             }
-            path = path.replaceFirst(filePattern, "$1com/sk89q/worldedit/util/formatting/text$2")
         }
         archiveClassifier.set("sources")
     }
@@ -96,4 +107,17 @@ fun Project.applyLibrariesConfiguration() {
     }
 
     applyCommonArtifactoryConfig()
+}
+
+fun Project.constrainDependenciesToLibsCore() {
+    evaluationDependsOn(":worldedit-libs:core")
+    val coreDeps = project(":worldedit-libs:core").configurations["shade"].dependencies
+        .filterIsInstance<ExternalModuleDependency>()
+    dependencies.constraints {
+        for (coreDep in coreDeps) {
+            add("shade", "${coreDep.group}:${coreDep.name}:${coreDep.version}") {
+                because("libs should align with libs:core")
+            }
+        }
+    }
 }

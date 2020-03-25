@@ -17,27 +17,25 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.sk89q.worldedit.world.biome;
+package com.sk89q.worldedit.internal.annotation;
 
-import com.sk89q.worldedit.world.registry.BiomeRegistry;
+import org.enginehub.piston.inject.InjectAnnotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Provides information about a biome.
+ * Indicates that this value is for 3d-chunk compatibility.
  *
- * @deprecated This no longer returns useful information.
+ * <p>
+ * For vectors, this means that the vector supports 2D & 3D inputs,
+ * with 2D getting a Y value of 0.
+ * </p>
  */
-@Deprecated
-public interface BiomeData {
-
-    /**
-     * Get the name of the biome, which does not have to follow any
-     * particular convention.
-     *
-     * @return the biome's name
-     * @deprecated This method does not work on the server.
-     *     Use {@link BiomeRegistry#getRichName(BiomeType)}.
-     */
-    @Deprecated
-    String getName();
-
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.PARAMETER)
+@InjectAnnotation
+public @interface Chunk3d {
 }

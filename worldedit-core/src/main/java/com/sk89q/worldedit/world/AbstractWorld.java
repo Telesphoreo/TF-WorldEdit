@@ -30,6 +30,7 @@ import com.sk89q.worldedit.math.BlockVector2;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.util.Direction;
+import com.sk89q.worldedit.util.SideEffectSet;
 import com.sk89q.worldedit.world.block.BlockStateHolder;
 import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
@@ -56,7 +57,7 @@ public abstract class AbstractWorld implements World {
 
     @Override
     public final <B extends BlockStateHolder<B>> boolean setBlock(BlockVector3 pt, B block) throws WorldEditException {
-        return setBlock(pt, block, true);
+        return setBlock(pt, block, SideEffectSet.defaults());
     }
 
     @Override
@@ -65,8 +66,13 @@ public abstract class AbstractWorld implements World {
     }
 
     @Override
+    public int getMinY() {
+        return 0;
+    }
+
+    @Override
     public int getMaxY() {
-        return getMaximumPoint().getBlockY();
+        return 255;
     }
 
     @Override
@@ -122,12 +128,12 @@ public abstract class AbstractWorld implements World {
 
     @Override
     public BlockVector3 getMinimumPoint() {
-        return BlockVector3.at(-30000000, 0, -30000000);
+        return BlockVector3.at(-30000000, getMinY(), -30000000);
     }
 
     @Override
     public BlockVector3 getMaximumPoint() {
-        return BlockVector3.at(30000000, 255, 30000000);
+        return BlockVector3.at(30000000, getMaxY(), 30000000);
     }
 
     @Override

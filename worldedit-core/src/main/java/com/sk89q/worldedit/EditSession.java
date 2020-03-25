@@ -39,7 +39,7 @@ import com.sk89q.worldedit.extent.validation.BlockChangeLimiter;
 import com.sk89q.worldedit.extent.validation.DataValidatorExtent;
 import com.sk89q.worldedit.extent.world.BlockQuirkExtent;
 import com.sk89q.worldedit.extent.world.ChunkLoadingExtent;
-import com.sk89q.worldedit.extent.world.FastModeExtent;
+import com.sk89q.worldedit.extent.world.SideEffectExtent;
 import com.sk89q.worldedit.extent.world.SurvivalModeExtent;
 import com.sk89q.worldedit.extent.world.WatchdogTickingExtent;
 import com.sk89q.worldedit.function.GroundFunction;
@@ -104,6 +104,7 @@ import com.sk89q.worldedit.regions.shape.RegionShape;
 import com.sk89q.worldedit.regions.shape.WorldEditExpressionEnvironment;
 import com.sk89q.worldedit.util.Countable;
 import com.sk89q.worldedit.util.Direction;
+import com.sk89q.worldedit.util.SideEffectSet;
 import com.sk89q.worldedit.util.TreeGenerator;
 import com.sk89q.worldedit.util.collection.DoubleArrayList;
 import com.sk89q.worldedit.util.eventbus.EventBus;
@@ -185,7 +186,7 @@ public class EditSession implements Extent, AutoCloseable {
     protected final World world;
     private final ChangeSet changeSet = new BlockOptimizedHistory();
 
-    private @Nullable FastModeExtent fastModeExtent;
+    private @Nullable SideEffectExtent sideEffectExtent;
     private final SurvivalModeExtent survivalExtent;
     private @Nullable ChunkBatchingExtent chunkBatchingExtent;
     private final BlockBagExtent blockBagExtent;
@@ -224,7 +225,7 @@ public class EditSession implements Extent, AutoCloseable {
             Extent extent;
 
             // These extents are ALWAYS used
-            extent = fastModeExtent = new FastModeExtent(world, false);
+            extent = sideEffectExtent = new SideEffectExtent(world);
             if (watchdog != null) {
                 // Reset watchdog before world placement
                 WatchdogTickingExtent watchdogExtent = new WatchdogTickingExtent(extent, watchdog);
@@ -288,7 +289,7 @@ public class EditSession implements Extent, AutoCloseable {
         if (chunkBatchingExtent != null && chunkBatchingExtent.commitRequired()) {
             return true;
         }
-        if (fastModeExtent != null && fastModeExtent.commitRequired()) {
+        if (sideEffectExtent != null && sideEffectExtent.commitRequired()) {
             return true;
         }
         return false;
@@ -309,7 +310,7 @@ public class EditSession implements Extent, AutoCloseable {
      * @param reorderMode The reorder mode
      */
     public void setReorderMode(ReorderMode reorderMode) {
-        if (reorderMode == ReorderMode.FAST && fastModeExtent == null) {
+        if (reorderMode == ReorderMode.FAST && sideEffectExtent == null) {
             throw new IllegalArgumentException("An EditSession without a fast mode tried to use it for reordering!");
         }
         if (reorderMode == ReorderMode.MULTI_STAGE && reorderExtent == null) {
@@ -322,20 +323,20 @@ public class EditSession implements Extent, AutoCloseable {
         this.reorderMode = reorderMode;
         switch (reorderMode) {
             case MULTI_STAGE:
-                if (fastModeExtent != null) {
-                    fastModeExtent.setPostEditSimulationEnabled(false);
+                if (sideEffectExtent != null) {
+                    sideEffectExtent.setPostEditSimulationEnabled(false);
                 }
                 reorderExtent.setEnabled(true);
                 break;
             case FAST:
-                fastModeExtent.setPostEditSimulationEnabled(true);
+                sideEffectExtent.setPostEditSimulationEnabled(true);
                 if (reorderExtent != null) {
                     reorderExtent.setEnabled(false);
                 }
                 break;
             case NONE:
-                if (fastModeExtent != null) {
-                    fastModeExtent.setPostEditSimulationEnabled(false);
+                if (sideEffectExtent != null) {
+                    sideEffectExtent.setPostEditSimulationEnabled(false);
                 }
                 if (reorderExtent != null) {
                     reorderExtent.setEnabled(false);
@@ -465,9 +466,21 @@ public class EditSession implements Extent, AutoCloseable {
      *
      * @param enabled true to enable
      */
+    @Deprecated
     public void setFastMode(boolean enabled) {
-        if (fastModeExtent != null) {
-            fastModeExtent.setEnabled(enabled);
+        if (sideEffectExtent != null) {
+            sideEffectExtent.setSideEffectSet(enabled ? SideEffectSet.defaults() : SideEffectSet.none());
+        }
+    }
+
+    /**
+     * Set which block updates should occur.
+     *
+     * @param sideEffectSet side effects to enable
+     */
+    public void setSideEffectApplier(SideEffectSet sideEffectSet) {
+        if (sideEffectExtent != null) {
+            sideEffectExtent.setSideEffectSet(sideEffectSet);
         }
     }
 
@@ -479,8 +492,16 @@ public class EditSession implements Extent, AutoCloseable {
      *
      * @return true if enabled
      */
+    @Deprecated
     public boolean hasFastMode() {
-        return fastModeExtent != null && fastModeExtent.isEnabled();
+        return sideEffectExtent != null && this.sideEffectExtent.getSideEffectSet().doesApplyAny();
+    }
+
+    public SideEffectSet getSideEffectApplier() {
+        if (sideEffectExtent == null) {
+            return SideEffectSet.defaults();
+        }
+        return sideEffectExtent.getSideEffectSet();
     }
 
     /**
@@ -875,7 +896,7 @@ public class EditSession implements Extent, AutoCloseable {
         MaskIntersection mask = new MaskIntersection(
                 new RegionMask(new EllipsoidRegion(null, origin, Vector3.at(radius, radius, radius))),
                 new BoundedHeightMask(
-                        Math.max(origin.getBlockY() - depth + 1, 0),
+                        Math.max(origin.getBlockY() - depth + 1, getWorld().getMinY()),
                         Math.min(getWorld().getMaxY(), origin.getBlockY())),
                 Masks.negate(new ExistingBlockMask(this)));
 
@@ -1407,7 +1428,7 @@ public class EditSession implements Extent, AutoCloseable {
             waterloggedMask = new BlockStateMask(this, stateMap, true);
         }
         MaskIntersection mask = new MaskIntersection(
-                new BoundedHeightMask(0, getWorld().getMaxY()),
+                new BoundedHeightMask(getWorld().getMinY(), getWorld().getMaxY()),
                 new RegionMask(new EllipsoidRegion(null, origin, Vector3.at(radius, radius, radius))),
                 waterlogged ? new MaskUnion(getWorld().createLiquidMask(), waterloggedMask)
                             : getWorld().createLiquidMask());
@@ -1453,7 +1474,7 @@ public class EditSession implements Extent, AutoCloseable {
 
         // There are boundaries that the routine needs to stay in
         MaskIntersection mask = new MaskIntersection(
-                new BoundedHeightMask(0, Math.min(origin.getBlockY(), getWorld().getMaxY())),
+                new BoundedHeightMask(getWorld().getMinY(), Math.min(origin.getBlockY(), getWorld().getMaxY())),
                 new RegionMask(new EllipsoidRegion(null, origin, Vector3.at(radius, radius, radius))),
                 blockMask
         );
@@ -1513,8 +1534,8 @@ public class EditSession implements Extent, AutoCloseable {
             pos = pos.subtract(0, height, 0);
         }
 
-        if (pos.getBlockY() < 0) {
-            pos = pos.withY(0);
+        if (pos.getBlockY() < world.getMinY()) {
+            pos = pos.withY(world.getMinY());
         } else if (pos.getBlockY() + height - 1 > world.getMaxY()) {
             height = world.getMaxY() - pos.getBlockY() + 1;
         }
@@ -1719,9 +1740,26 @@ public class EditSession implements Extent, AutoCloseable {
      * @param radius the radius
      * @return number of blocks affected
      * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     * @deprecated Use {@link #thaw(BlockVector3, double, int)}.
      */
+    @Deprecated
     public int thaw(BlockVector3 position, double radius)
-            throws MaxChangedBlocksException {
+        throws MaxChangedBlocksException {
+        return thaw(position, radius,
+            WorldEdit.getInstance().getConfiguration().defaultVerticalHeight);
+    }
+
+    /**
+     * Thaw blocks in a cylinder.
+     *
+     * @param position the position
+     * @param radius the radius
+     * @param height the height (upwards and downwards)
+     * @return number of blocks affected
+     * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     */
+    public int thaw(BlockVector3 position, double radius, int height)
+        throws MaxChangedBlocksException {
         int affected = 0;
         double radiusSq = radius * radius;
 
@@ -1732,6 +1770,10 @@ public class EditSession implements Extent, AutoCloseable {
         BlockState air = BlockTypes.AIR.getDefaultState();
         BlockState water = BlockTypes.WATER.getDefaultState();
 
+        int centerY = Math.max(getWorld().getMinY(), Math.min(getWorld().getMaxY(), oy));
+        int minY = Math.max(getWorld().getMinY(), centerY - height);
+        int maxY = Math.min(getWorld().getMaxY(), centerY + height);
+
         int ceilRadius = (int) Math.ceil(radius);
         for (int x = ox - ceilRadius; x <= ox + ceilRadius; ++x) {
             for (int z = oz - ceilRadius; z <= oz + ceilRadius; ++z) {
@@ -1739,7 +1781,7 @@ public class EditSession implements Extent, AutoCloseable {
                     continue;
                 }
 
-                for (int y = world.getMaxY(); y >= 1; --y) {
+                for (int y = maxY; y > minY; --y) {
                     BlockVector3 pt = BlockVector3.at(x, y, z);
                     BlockType id = getBlock(pt).getBlockType();
 
@@ -1770,8 +1812,25 @@ public class EditSession implements Extent, AutoCloseable {
      * @param radius a radius
      * @return number of blocks affected
      * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     * @deprecated Use {@link #simulateSnow(BlockVector3, double, int)}.
      */
+    @Deprecated
     public int simulateSnow(BlockVector3 position, double radius) throws MaxChangedBlocksException {
+        return simulateSnow(position, radius,
+            WorldEdit.getInstance().getConfiguration().defaultVerticalHeight);
+    }
+
+    /**
+     * Make snow in a cylinder.
+     *
+     * @param position a position
+     * @param radius a radius
+     * @param height the height (upwards and downwards)
+     * @return number of blocks affected
+     * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     */
+    public int simulateSnow(BlockVector3 position, double radius, int height)
+        throws MaxChangedBlocksException {
         int affected = 0;
         double radiusSq = radius * radius;
 
@@ -1782,6 +1841,10 @@ public class EditSession implements Extent, AutoCloseable {
         BlockState ice = BlockTypes.ICE.getDefaultState();
         BlockState snow = BlockTypes.SNOW.getDefaultState();
 
+        int centerY = Math.max(getWorld().getMinY(), Math.min(getWorld().getMaxY(), oy));
+        int minY = Math.max(getWorld().getMinY(), centerY - height);
+        int maxY = Math.min(getWorld().getMaxY(), centerY + height);
+
         int ceilRadius = (int) Math.ceil(radius);
         for (int x = ox - ceilRadius; x <= ox + ceilRadius; ++x) {
             for (int z = oz - ceilRadius; z <= oz + ceilRadius; ++z) {
@@ -1789,7 +1852,7 @@ public class EditSession implements Extent, AutoCloseable {
                     continue;
                 }
 
-                for (int y = world.getMaxY(); y >= 1; --y) {
+                for (int y = maxY; y > minY; --y) {
                     BlockVector3 pt = BlockVector3.at(x, y, z);
                     BlockType id = getBlock(pt).getBlockType();
 
@@ -1835,12 +1898,30 @@ public class EditSession implements Extent, AutoCloseable {
      *
      * @param position a position
      * @param radius a radius
-     * @param onlyNormalDirt only affect normal dirt (data value 0)
+     * @param onlyNormalDirt only affect normal dirt (all default properties)
+     * @return number of blocks affected
+     * @throws MaxChangedBlocksException thrown if too many blocks are changed
+     * @deprecated Use {@link #green(BlockVector3, double, int, boolean)}.
+     */
+    @Deprecated
+    public int green(BlockVector3 position, double radius, boolean onlyNormalDirt)
+        throws MaxChangedBlocksException {
+        return green(position, radius,
+            WorldEdit.getInstance().getConfiguration().defaultVerticalHeight, onlyNormalDirt);
+    }
+
+    /**
+     * Make dirt green in a cylinder.
+     *
+     * @param position the position
+     * @param radius the radius
+     * @param height the height
+     * @param onlyNormalDirt only affect normal dirt (all default properties)
      * @return number of blocks affected
      * @throws MaxChangedBlocksException thrown if too many blocks are changed
      */
-    public int green(BlockVector3 position, double radius, boolean onlyNormalDirt)
-            throws MaxChangedBlocksException {
+    public int green(BlockVector3 position, double radius, int height, boolean onlyNormalDirt)
+        throws MaxChangedBlocksException {
         int affected = 0;
         final double radiusSq = radius * radius;
 
@@ -1850,6 +1931,10 @@ public class EditSession implements Extent, AutoCloseable {
 
         final BlockState grass = BlockTypes.GRASS_BLOCK.getDefaultState();
 
+        final int centerY = Math.max(getWorld().getMinY(), Math.min(getWorld().getMaxY(), oy));
+        final int minY = Math.max(getWorld().getMinY(), centerY - height);
+        final int maxY = Math.min(getWorld().getMaxY(), centerY + height);
+
         final int ceilRadius = (int) Math.ceil(radius);
         for (int x = ox - ceilRadius; x <= ox + ceilRadius; ++x) {
             for (int z = oz - ceilRadius; z <= oz + ceilRadius; ++z) {
@@ -1857,7 +1942,7 @@ public class EditSession implements Extent, AutoCloseable {
                     continue;
                 }
 
-                for (int y = world.getMaxY(); y >= 1; --y) {
+                for (int y = maxY; y > minY; --y) {
                     final BlockVector3 pt = BlockVector3.at(x, y, z);
                     final BlockState block = getBlock(pt);
 

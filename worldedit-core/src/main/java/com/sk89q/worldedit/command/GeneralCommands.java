@@ -19,8 +19,6 @@
 
 package com.sk89q.worldedit.command;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.LocalConfiguration;
 import com.sk89q.worldedit.LocalSession;
@@ -35,12 +33,15 @@ import com.sk89q.worldedit.extension.input.DisallowedUsageException;
 import com.sk89q.worldedit.extension.platform.Actor;
 import com.sk89q.worldedit.extension.platform.Capability;
 import com.sk89q.worldedit.function.mask.Mask;
+import com.sk89q.worldedit.util.SideEffect;
+import com.sk89q.worldedit.util.SideEffectSet;
 import com.sk89q.worldedit.util.formatting.component.PaginationBox;
+import com.sk89q.worldedit.util.formatting.component.SideEffectBox;
 import com.sk89q.worldedit.util.formatting.text.Component;
-import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.util.formatting.text.TextComponent;
 import com.sk89q.worldedit.util.formatting.text.TranslatableComponent;
 import com.sk89q.worldedit.util.formatting.text.format.TextColor;
+import com.sk89q.worldedit.world.World;
 import com.sk89q.worldedit.world.item.ItemType;
 import me.totalfreedom.worldedit.WorldEditHandler;
 import net.md_5.bungee.api.ChatColor;
@@ -56,6 +57,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * General WorldEdit commands.
@@ -155,24 +158,62 @@ public class GeneralCommands {
 
     @Command(
         name = "/fast",
-        desc = "Toggle fast mode"
+        desc = "Toggle fast mode side effects"
     )
     @CommandPermissions("worldedit.fast")
     public void fast(Actor actor, LocalSession session,
-                     @Arg(desc = "The new fast mode state", def = "")
-                        Boolean fastMode) {
-        boolean hasFastMode = session.hasFastMode();
-        if (fastMode != null && fastMode == hasFastMode) {
-            actor.printError(TranslatableComponent.of(fastMode ? "worldedit.fast.enabled.already" : "worldedit.fast.disabled.already"));
-            return;
+                    @Arg(desc = "The side effect", def = "")
+                        SideEffect sideEffect,
+                    @Arg(desc = "The new side effect state", def = "")
+                        SideEffect.State newState,
+                    @Switch(name = 'h', desc = "Show the info box")
+                        boolean showInfoBox) throws WorldEditException {
+        if (sideEffect != null) {
+            SideEffect.State currentState = session.getSideEffectSet().getState(sideEffect);
+            if (newState != null && newState == currentState) {
+                if (!showInfoBox) {
+                    actor.printError(TranslatableComponent.of(
+                            "worldedit.fast.sideeffect.already-set",
+                            TranslatableComponent.of(sideEffect.getDisplayName()),
+                            TranslatableComponent.of(newState.getDisplayName())
+                    ));
+                }
+                return;
+            }
+
+            if (newState != null) {
+                session.setSideEffectSet(session.getSideEffectSet().with(sideEffect, newState));
+                if (!showInfoBox) {
+                    actor.printInfo(TranslatableComponent.of(
+                            "worldedit.fast.sideeffect.set",
+                            TranslatableComponent.of(sideEffect.getDisplayName()),
+                            TranslatableComponent.of(newState.getDisplayName())
+                    ));
+                }
+            } else {
+                actor.printInfo(TranslatableComponent.of(
+                        "worldedit.fast.sideeffect.get",
+                        TranslatableComponent.of(sideEffect.getDisplayName()),
+                        TranslatableComponent.of(currentState.getDisplayName())
+                ));
+            }
+        } else if (newState != null) {
+            SideEffectSet applier = session.getSideEffectSet();
+            for (SideEffect sideEffectEntry : SideEffect.values()) {
+                applier = applier.with(sideEffectEntry, newState);
+            }
+            session.setSideEffectSet(applier);
+            if (!showInfoBox) {
+                actor.printInfo(TranslatableComponent.of(
+                        "worldedit.fast.sideeffect.set-all",
+                        TranslatableComponent.of(newState.getDisplayName())
+                ));
+            }
         }
 
-        if (hasFastMode) {
-            session.setFastMode(false);
-            actor.printInfo(TranslatableComponent.of("worldedit.fast.disabled"));
-        } else {
-            session.setFastMode(true);
-            actor.printInfo(TranslatableComponent.of("worldedit.fast.enabled"));
+        if (sideEffect == null || showInfoBox) {
+            SideEffectBox sideEffectBox = new SideEffectBox(session.getSideEffectSet());
+            actor.print(sideEffectBox.create(1));
         }
     }
 
@@ -334,7 +375,7 @@ public class GeneralCommands {
         @Override
         public Component call() throws Exception {
             String command = "/searchitem " + (blocksOnly ? "-b " : "") + (itemsOnly ? "-i " : "") + "-p %page% " + search;
-            Map<String, String> results = new TreeMap<>();
+            Map<String, Component> results = new TreeMap<>();
             String idMatch = search.replace(' ', '_');
             String nameMatch = search.toLowerCase(Locale.ROOT);
             for (ItemType searchType : ItemType.REGISTRY) {
@@ -346,15 +387,17 @@ public class GeneralCommands {
                     continue;
                 }
                 final String id = searchType.getId();
-                String name = searchType.getName();
-                final boolean hasName = !name.equals(id);
-                name = name.toLowerCase(Locale.ROOT);
-                if (id.contains(idMatch) || (hasName && name.contains(nameMatch))) {
-                    results.put(id, name + (hasName ? " (" + id + ")" : ""));
+                if (id.contains(idMatch)) {
+                    Component name = searchType.getRichName();
+                    results.put(id, TextComponent.builder()
+                        .append(name)
+                        .append(" (" + id + ")")
+                        .build());
                 }
             }
-            List<String> list = new ArrayList<>(results.values());
-            return PaginationBox.fromStrings("Search results for '" + search + "'", command, list).create(page);
+            List<Component> list = new ArrayList<>(results.values());
+            return PaginationBox.fromComponents("Search results for '" + search + "'", command, list)
+                .create(page);
         }
     }
 }
